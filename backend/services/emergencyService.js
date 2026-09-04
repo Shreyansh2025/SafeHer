@@ -1,13 +1,32 @@
-const Emergency = require('../models/Emergency');
+const {Emergency, EmergencyContact,Notification} = require('../models/relation');
 
-const createEmergency = async (userId,latitude, longitude ,address) => {
+const createEmergency = async (userId,latitude, longitude , address) => {
     try {
         const emergency = await Emergency.create({
             userId,
             latitude,
-            longitude
+            longitude,
+            address
         });
+
+        const contact  = await EmergencyContact.findAll({ where: { userId } });
+
+
+        const notifications = contact.map(contact => ({
+            emergencyId: emergency.id,
+            contactId: contact.id,
+            message: `URGENT SOS! I need help. Location: ${latitude}, ${longitude}`,
+            type: 'SOS_ALERT',
+            status: 'PENDING'
+
+        }))
+
+        if(notifications.length > 0) {
+            await Notification.bulkCreate(notifications);
+        }
         return emergency;
+
+
     } catch (error) {
         console.error('Error creating emergency:',error);
         throw error;

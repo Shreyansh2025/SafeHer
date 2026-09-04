@@ -18,6 +18,8 @@ const io = new Server(server , {
 // Middleware to parse incoming JSON requests
 app.use(express.json());
 const emergencyRoutes = require('./routes/emergencyRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+
 
 // Basic health check route
 app.get('/', (req, res) => {
@@ -25,6 +27,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/emergency', emergencyRoutes);
+app.use('/api/notifications', notificationRoutes);
 // Define the port from environment variables or default to 3000
 
 io.on('connection',(socket) =>{
