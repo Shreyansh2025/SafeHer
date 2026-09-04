@@ -20,6 +20,10 @@ Notification.belongsTo(Emergency, { foreignKey: 'emergencyId' });
 EmergencyContact.hasMany(Notification, { foreignKey: 'contactId', onDelete: 'CASCADE' });
 Notification.belongsTo(EmergencyContact, { foreignKey: 'contactId' });
 
+sequelize.sync({ alter: true })
+  .then(() => console.log('✅ SafeHer Tables synchronized successfully.'))
+  .catch((err) => console.error('❌ Sync error:', err));
+
 module.exports = {
   sequelize,
   User,
