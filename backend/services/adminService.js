@@ -1,10 +1,5 @@
 const User = require("../models/User");
 const Emergency = require("../models/Emergency");
-const admin = require("../models/Admin")
-
-// Hardcoded admin credentials
-const ADMIN_EMAIL = "admin@safeher.com";
-const ADMIN_PASSWORD = "admin123";
 
 // Admin Login
 const verifyAdmin = async (email, password) => {
@@ -15,7 +10,7 @@ const verifyAdmin = async (email, password) => {
   return {
     id: 1,
     name: "SafeHer Admin",
-    email: ADMIN_EMAIL,
+    email: process.env.ADMIN_EMAIL,
     role: "ADMIN",
   };
 };

@@ -81,27 +81,27 @@ const title = (t) => console.log(`\n── ${t} ──`);
   title('2. Emergency contacts  (/api/emergency-Contact)');
   for (const [name, relation] of [['Mom', 'Family'], ['Best Friend', 'Friend']]) {
     r = await call('POST', '/api/emergency-Contact', {
-      userId, name, phone: `8${String(stamp).slice(-8)}${contactIds.length}`, relation,
-    });
+      name, phone: `8${String(stamp).slice(-8)}${contactIds.length}`, relation,
+    }, token);
     check(`POST contact "${name}" → 201`, r.status === 201 && !!r.json?.data?.id, show(r));
     contactIds.push(r.json?.data?.id);
   }
-  r = await call('GET', '/api/emergency-Contact');
+  r = await call('GET', '/api/emergency-Contact', null, token);
   check('GET all contacts → 200 and includes ours',
     r.status === 200 && r.json?.data?.some((c) => c.id === contactIds[0]), show(r));
-  r = await call('GET', `/api/emergency-Contact/${contactIds[0]}`);
+  r = await call('GET', `/api/emergency-Contact/${contactIds[0]}`, null, token);
   check('GET contact by id → 200', r.status === 200 && r.json?.data?.id === contactIds[0], show(r));
-  r = await call('PUT', `/api/emergency-Contact/${contactIds[0]}`, { name: 'Mom (updated)' });
+  r = await call('PUT', `/api/emergency-Contact/${contactIds[0]}`, { name: 'Mom (updated)' }, token);
   check('PUT contact → 200 and name changed', r.status === 200 && r.json?.data?.name === 'Mom (updated)', show(r));
 
   title('3. SOS  (/api/emergency)');
-  r = await call('POST', '/api/emergency/trigger', { userId, latitude: 23.17, longitude: 75.79 });
+  r = await call('POST', '/api/emergency/trigger', { latitude: 23.17, longitude: 75.79 }, token);
   check('POST /trigger → 201 + emergency id', r.status === 201 && !!r.json?.emergency?.id, show(r));
   emergencyId = r.json?.emergency?.id;
   check('new emergency starts as ACTIVE', r.json?.emergency?.status === 'ACTIVE', show(r));
 
   title('4. Notifications  (/api/notifications/:contactId)');
-  r = await call('GET', `/api/notifications/${contactIds[0]}`);
+  r = await call('GET', `/api/notifications/${contactIds[0]}`, null, token);
   const alerts = r.json?.alerts || [];
   check('one notification row was created for contact 1', r.status === 200 && alerts.length >= 1, show(r));
   check('…linked to the emergency, with its location', alerts[0]?.Emergency?.status === 'ACTIVE', show(r));
@@ -111,30 +111,34 @@ const title = (t) => console.log(`\n── ${t} ──`);
 
   title('5. Admin  (/api/admin)');
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-    skip('admin steps — set ADMIN_EMAIL and ADMIN_PASSWORD (hardcoded in services/adminService.js)');
+    skip('admin steps — set ADMIN_EMAIL and ADMIN_PASSWORD in .env');
   } else {
     r = await call('POST', '/api/admin/login', { email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
     check('POST /admin/login → 200 + token (needs ADMIN_JWT_SECRET in .env)',
       r.status === 200 && !!r.json?.data?.token, show(r));
-    r = await call('GET', '/api/admin/allactive/emergency');
-    check('GET active emergencies → includes ours, with user info',
-      r.status === 200 && r.json?.data?.some((e) => e.id === emergencyId && e.User?.id === userId), show(r));
-    r = await call('GET', '/api/admin/emergencies?status=ACTIVE');
-    check('GET emergencies?status=ACTIVE → 200', r.status === 200 && r.json?.count >= 1, show(r));
-    r = await call('GET', '/api/admin/users');
-    check('GET users → 200, no password field leaked',
-      r.status === 200 && r.json?.count >= 1 && !('password' in (r.json?.data?.[0] || {})), show(r));
-    if (r.status === 200) warn('admin routes answered WITHOUT any token — they are not protected yet (known gap)');
+    const adminToken = r.json?.data?.token;
+    if (!adminToken) {
+      warn('admin login failed, skipping protected admin routes');
+    } else {
+      r = await call('GET', '/api/admin/allactive/emergency', null, adminToken);
+      check('GET active emergencies → includes ours, with user info',
+        r.status === 200 && r.json?.data?.some((e) => e.id === emergencyId && e.User?.id === userId), show(r));
+      r = await call('GET', '/api/admin/emergencies?status=ACTIVE', null, adminToken);
+      check('GET emergencies?status=ACTIVE → 200', r.status === 200 && r.json?.count >= 1, show(r));
+      r = await call('GET', '/api/admin/users', null, adminToken);
+      check('GET users → 200, no password field leaked',
+        r.status === 200 && r.json?.count >= 1 && !('password' in (r.json?.data?.[0] || {})), show(r));
+    }
   }
 
   title('6. Resolve + delete');
-  r = await call('PUT', `/api/emergency/${emergencyId}/resolve`);
+  r = await call('PUT', `/api/emergency/${emergencyId}/resolve`, null, token);
   check('PUT /:id/resolve → 200, status RESOLVED', r.status === 200 && r.json?.emergency?.status === 'RESOLVED', show(r));
-  r = await call('PUT', '/api/emergency/99999999/resolve');
+  r = await call('PUT', '/api/emergency/99999999/resolve', null, token);
   check('resolve unknown id → 404', r.status === 404, show(r));
-  r = await call('DELETE', `/api/emergency-Contact/${contactIds[1]}`);
+  r = await call('DELETE', `/api/emergency-Contact/${contactIds[1]}`, null, token);
   check('DELETE contact → 200', r.status === 200, show(r));
-  r = await call('GET', `/api/emergency-Contact/${contactIds[1]}`);
+  r = await call('GET', `/api/emergency-Contact/${contactIds[1]}`, null, token);
   check('deleted contact is gone → 404', r.status === 404, show(r));
 
   title('7. Socket.IO live location');

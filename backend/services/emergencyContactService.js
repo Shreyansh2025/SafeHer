@@ -15,8 +15,9 @@ const createEmergencyContactService = async (data) => {
 };
 
 // GET ALL
-const getAllEmergencyContactsService = async () => {
+const getAllEmergencyContactsService = async (userId) => {
   const contacts = await EmergencyContact.findAll({
+    where: { userId },
     order: [["createdAt", "DESC"]],
   });
 
@@ -24,16 +25,20 @@ const getAllEmergencyContactsService = async () => {
 };
 
 // GET CONTACT BY ID
-const getEmergencyContactByIdService = async (id) => {
-  const contact = await EmergencyContact.findByPk(id);
+const getEmergencyContactByIdService = async (id, userId) => {
+  const contact = await EmergencyContact.findOne({
+    where: { id, userId }
+  });
 
   return contact;
 };
 
 
 // UPDATE
-const updateEmergencyContactService = async (id, data) => {
-  const contact = await EmergencyContact.findByPk(id);
+const updateEmergencyContactService = async (id, userId, data) => {
+  const contact = await EmergencyContact.findOne({
+    where: { id, userId }
+  });
 
   if (!contact) {
     return null;
@@ -45,8 +50,10 @@ const updateEmergencyContactService = async (id, data) => {
 };
 
 // DELETE
-const deleteEmergencyContactService = async (id) => {
-  const contact = await EmergencyContact.findByPk(id);
+const deleteEmergencyContactService = async (id, userId) => {
+  const contact = await EmergencyContact.findOne({
+    where: { id, userId }
+  });
 
   if (!contact) {
     return null;

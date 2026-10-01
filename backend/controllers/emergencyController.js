@@ -2,10 +2,12 @@ const emergencyService = require('../services/emergencyService');
 
 const trigger = async (req,res) => {
     try {
-        const { userId, latitude, longitude } = req.body;
+        const { latitude, longitude } = req.body;
+        // Get userId from authenticated user token
+        const userId = req.user.id;
 
-        if(!userId || !latitude || !longitude){
-            return res.status(400).json({message: 'User ID, latitude, and longitude are required.'})
+        if(!latitude || !longitude){
+            return res.status(400).json({message: 'Latitude and longitude are required.'})
         }
 
         const emergency = await emergencyService.createEmergency(userId,latitude,longitude);
@@ -27,8 +29,7 @@ const resolve = async (req,res) => {
         if(error.message === 'Emergency not found'){
             return res.status(404).json({message: 'Emergency not found'});
         }
-        // Otherwise, this line executes too, causing the crash:
-        res.status(500).json({ error: 'Failed to resolve SOS' });
+        return res.status(500).json({ error: 'Failed to resolve SOS' });
     }
 };
 

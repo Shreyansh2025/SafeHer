@@ -3,12 +3,14 @@ const emergencyContactService = require("../services/emergencyContactService");
 // CREATE CONTACT
 const createEmergencyContact = async (req, res) => {
   try {
-    const { userId, name, phone, relation } = req.body;
+    const { name, phone, relation } = req.body;
+    // Get userId from authenticated user token
+    const userId = req.user.id;
 
-    if (!userId || !name || !phone || !relation) {
+    if (!name || !phone || !relation) {
       return res.status(400).json({
         success: false,
-        message: "userId, name, phone and relation are required",
+        message: "name, phone and relation are required",
       });
     }
 
@@ -39,8 +41,11 @@ const createEmergencyContact = async (req, res) => {
 // GET ALL CONTACTS
 const getAllEmergencyContacts = async (req, res) => {
   try {
+    // Get userId from authenticated user token
+    const userId = req.user.id;
+
     const contacts =
-      await emergencyContactService.getAllEmergencyContactsService();
+      await emergencyContactService.getAllEmergencyContactsService(userId);
 
     return res.status(200).json({
       success: true,
@@ -62,14 +67,16 @@ const getAllEmergencyContacts = async (req, res) => {
 const getEmergencyContactById = async (req, res) => {
   try {
     const { id } = req.params;
+    // Get userId from authenticated user token
+    const userId = req.user.id;
 
     const contact =
-      await emergencyContactService.getEmergencyContactByIdService(id);
+      await emergencyContactService.getEmergencyContactByIdService(id, userId);
 
     if (!contact) {
       return res.status(404).json({
         success: false,
-        message: "Emergency contact not found",
+        message: "Emergency contact not found or access denied",
       });
     }
 
@@ -93,11 +100,13 @@ const getEmergencyContactById = async (req, res) => {
 const updateEmergencyContact = async (req, res) => {
   try {
     const { id } = req.params;
+    // Get userId from authenticated user token
+    const userId = req.user.id;
 
     const { name, phone, relation } = req.body;
 
     const updatedContact =
-      await emergencyContactService.updateEmergencyContactService(id, {
+      await emergencyContactService.updateEmergencyContactService(id, userId, {
         name,
         phone,
         relation,
@@ -106,7 +115,7 @@ const updateEmergencyContact = async (req, res) => {
     if (!updatedContact) {
       return res.status(404).json({
         success: false,
-        message: "Emergency contact not found",
+        message: "Emergency contact not found or access denied",
       });
     }
 
@@ -131,14 +140,16 @@ const updateEmergencyContact = async (req, res) => {
 const deleteEmergencyContact = async (req, res) => {
   try {
     const { id } = req.params;
+    // Get userId from authenticated user token
+    const userId = req.user.id;
 
     const deletedContact =
-      await emergencyContactService.deleteEmergencyContactService(id);
+      await emergencyContactService.deleteEmergencyContactService(id, userId);
 
     if (!deletedContact) {
       return res.status(404).json({
         success: false,
-        message: "Emergency contact not found",
+        message: "Emergency contact not found or access denied",
       });
     }
 
