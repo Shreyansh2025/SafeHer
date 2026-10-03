@@ -1,0 +1,97 @@
+```gitignore
+# =========================================================
+# SafeHer - Root Git Ignore
+# Only source/project content should be pushed to GitHub.
+# =========================================================
+
+# Dependencies
+**/node_modules/
+
+# Environment / secrets
+.env
+.env.*
+
+# Documentation / notes / guides / team files
+# Ignores ALL Markdown files at any depth.
+*.md
+!README.md
+
+# Expo / React Native generated files
+**/.expo/
+**/dist/
+**/web-build/
+**/expo-env.d.ts
+
+# Native generated/build folders
+**/.kotlin/
+**/ios/
+**/android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro / React Native generated files
+**/.metro-health-check*
+**/.metro/
+
+# Backend build / runtime artifacts
+backend/build/
+backend/dist/
+backend/coverage/
+backend/coverage-report/
+backend/logs/
+backend/tmp/
+backend/temp/
+
+# Mobile build / runtime artifacts
+mobile/.dist/
+mobile/.build/
+mobile/.coverage/
+mobile/.coverage.*
+mobile/.tmp/
+mobile/.temp/
+mobile/.expo/dev/logs/
+mobile/.expo/dev/*.log
+
+# Debug / package-manager logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+pnpm-debug.*
+*.log
+
+# IDE / editor files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+*.orig.*
+
+# OS generated files
+.DS_Store
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+Thumbs.db
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Agent / tooling metadata
+.agents/
+.claude/
+**/.agents/
+**/.claude/
+**/skills-lock.json
+
+# Deployment tooling
+.vercel/
+```
