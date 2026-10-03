@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ```gitignore
 # =========================================================
 # SafeHer - Root Git Ignore
@@ -10,6 +11,7 @@
 # Environment / secrets
 .env
 .env.*
+!**/.env.example
 
 # Documentation / notes / guides / team files
 # Ignores ALL Markdown files at any depth.
@@ -95,3 +97,7 @@ Thumbs.db
 # Deployment tooling
 .vercel/
 ```
+=======
+node_modules/
+.env
+>>>>>>> origin/main
