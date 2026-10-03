@@ -1,21 +1,46 @@
 const express = require("express");
+
 const router = express.Router();
-const authMiddleware = require("../middleware/authMiddleware");
 
-const {createEmergencyContact,getAllEmergencyContacts,getEmergencyContactById,updateEmergencyContact,deleteEmergencyContact} = require("../controllers/emergencyContactController");
+const {
+    createEmergencyContact,
+    getAllEmergencyContacts,
+    getEmergencyContactById,
+    updateEmergencyContact,
+    deleteEmergencyContact
+} = require("../controllers/emergencyContactController");
 
-// All routes require authentication
+const authMiddleware =
+    require("../middleware/authMiddleware");
+
+
 router.use(authMiddleware);
 
-// CREATE
-router.post("/", createEmergencyContact);
-//get
-router.get("/", getAllEmergencyContacts);
-//get by id
-router.get("/:id", getEmergencyContactById);
-//update
-router.put("/:id",updateEmergencyContact)
-//delete
-router.delete("/:id",deleteEmergencyContact)
+
+router.post(
+    "/",
+    createEmergencyContact
+);
+
+router.get(
+    "/",
+    getAllEmergencyContacts
+);
+
+router.get(
+    "/:id",
+    getEmergencyContactById
+);
+
+router.put(
+    "/:id",
+    updateEmergencyContact
+);
+
+router.delete(
+    "/:id",
+    deleteEmergencyContact
+);
+
 
 module.exports = router;
