@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-```gitignore
 # =========================================================
 # SafeHer - Root Git Ignore
 # Only source/project content should be pushed to GitHub.
@@ -96,8 +94,3 @@ Thumbs.db
 
 # Deployment tooling
 .vercel/
-```
-=======
-node_modules/
-.env
->>>>>>> origin/main

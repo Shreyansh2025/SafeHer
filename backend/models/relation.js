@@ -22,11 +22,7 @@ Notification.belongsTo(EmergencyContact, { foreignKey: 'contactId' });
 
 
 // Verify database connection independently of the model sync
-<<<<<<< HEAD
   sequelize.sync()
-=======
-  sequelize.sync({alter:true})
->>>>>>> origin/main
     .then(() => console.log('Database connection successfully.'))
     .catch(err => console.error(' Unable to connect to the database:', err));
 

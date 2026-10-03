@@ -18,7 +18,6 @@ const trigger = async (req,res) => {
     }
 };
 
-<<<<<<< HEAD
 const getAll = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -34,8 +33,6 @@ const getAll = async (req, res) => {
     }
 };
 
-=======
->>>>>>> origin/main
 const resolve = async (req,res) => {
     try {
         const { id } = req.params;
@@ -52,11 +49,7 @@ const resolve = async (req,res) => {
 };
 
 module.exports = {
-<<<<<<< HEAD
     trigger,
     getAll,
     resolve
-=======
-    trigger,resolve
->>>>>>> origin/main
 }
