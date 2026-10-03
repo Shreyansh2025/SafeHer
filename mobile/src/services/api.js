@@ -2,6 +2,18 @@ import axios from 'axios';
 import { API_URL } from '../utils/constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+let authFailureHandler = null;
+
+export const setAuthFailureHandler = (handler) => {
+  authFailureHandler = handler;
+
+  return () => {
+    if (authFailureHandler === handler) {
+      authFailureHandler = null;
+    }
+  };
+};
+
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,
@@ -28,12 +40,34 @@ api.interceptors.request.use(
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      AsyncStorage.removeItem('token');
-      AsyncStorage.removeItem('user');
+  async (error) => {
+    const status = error.response?.status;
+    const requestUrl = error.config?.url || '';
+
+    // Only handle 401 for authenticated/protected requests.
+    // Do not logout the current session because of a failed login attempt.
+    const isAuthRequest =
+      requestUrl.includes('/login') ||
+      requestUrl.includes('/register');
+
+    if (status === 401 && !isAuthRequest) {
+      try {
+        await AsyncStorage.multiRemove([
+          'token',
+          'user',
+        ]);
+      } catch (storageError) {
+        console.error(
+          'Error clearing auth storage:',
+          storageError
+        );
+      }
+
+      if (authFailureHandler) {
+        authFailureHandler();
+      }
     }
+
     return Promise.reject(error);
   }
 );
@@ -42,6 +76,13 @@ api.interceptors.response.use(
 export const authAPI = {
   register: (data) => api.post('/register', data),
   login: (data) => api.post('/login', data),
+};
+
+// Profile APIs
+export const profileAPI = {
+  get: () => api.get('/profile'),
+  update: (data) => api.put('/profile', data),
+  delete: () => api.delete('/profile'),
 };
 
 // Emergency Contact APIs

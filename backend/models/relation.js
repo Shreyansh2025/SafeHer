@@ -6,32 +6,47 @@ const Emergency = require('./Emergency');
 const Notification = require('./Notification');
 const Admin = require('./Admin');
 
-// --- Foreign Key Relationships ---
+User.hasMany(EmergencyContact, {
+    foreignKey: 'userId',
+    onDelete: 'CASCADE'
+});
 
-User.hasMany(EmergencyContact, { foreignKey: 'userId', onDelete: 'CASCADE' });
-EmergencyContact.belongsTo(User, { foreignKey: 'userId' });
+EmergencyContact.belongsTo(User, {
+    foreignKey: 'userId'
+});
 
-User.hasMany(Emergency, { foreignKey: 'userId', onDelete: 'CASCADE' });
-Emergency.belongsTo(User, { foreignKey: 'userId' });
+User.hasMany(Emergency, {
+    foreignKey: 'userId',
+    onDelete: 'CASCADE'
+});
 
-Emergency.hasMany(Notification, { foreignKey: 'emergencyId', onDelete: 'CASCADE' });
-Notification.belongsTo(Emergency, { foreignKey: 'emergencyId' });
+Emergency.belongsTo(User, {
+    foreignKey: 'userId'
+});
 
-EmergencyContact.hasMany(Notification, { foreignKey: 'contactId', onDelete: 'CASCADE' });
-Notification.belongsTo(EmergencyContact, { foreignKey: 'contactId' });
+Emergency.hasMany(Notification, {
+    foreignKey: 'emergencyId',
+    onDelete: 'CASCADE'
+});
 
+Notification.belongsTo(Emergency, {
+    foreignKey: 'emergencyId'
+});
 
-// Verify database connection independently of the model sync
-  sequelize.sync()
-    .then(() => console.log('Database connection successfully.'))
-    .catch(err => console.error(' Unable to connect to the database:', err));
+EmergencyContact.hasMany(Notification, {
+    foreignKey: 'contactId',
+    onDelete: 'CASCADE'
+});
 
+Notification.belongsTo(EmergencyContact, {
+    foreignKey: 'contactId'
+});
 
 module.exports = {
-  sequelize,
-  User,
-  EmergencyContact,
-  Emergency,
-  Notification,
-  Admin
+    sequelize,
+    User,
+    EmergencyContact,
+    Emergency,
+    Notification,
+    Admin
 };

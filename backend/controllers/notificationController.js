@@ -1,25 +1,66 @@
-const {Notification,Emergency} = require('../models/relation');
+const {
+    Notification,
+    Emergency,
+    EmergencyContact
+} = require('../models/relation');
 
-const getAlertforContact = async (req,res) => {
+
+const getAlertforContact = async (req, res) => {
     try {
         const { contactId } = req.params;
-        const alerts = await Notification.findAll({ 
-            where: { contactId },
-            include: [{
-                model: Emergency,
-                attributes: ['latitude', 'longitude', 'address', 'status', 'startedAt'],
-                order   : [['createdAt', 'DESC']]
-            }]
+        const userId = req.user.id;
+
+        // Verify that this contact belongs to the logged-in user
+        const contact = await EmergencyContact.findOne({
+            where: {
+                id: contactId,
+                userId: userId
+            }
         });
 
-        res.status(200).json({ alerts });
+        if (!contact) {
+            return res.status(404).json({
+                success: false,
+                message: 'Emergency contact not found or access denied'
+            });
+        }
+
+        // Fetch notifications for this user's contact
+        const alerts = await Notification.findAll({
+            where: {
+                contactId: contactId
+            },
+            include: [{
+                model: Emergency,
+                attributes: [
+                    'latitude',
+                    'longitude',
+                    'address',
+                    'status',
+                    'startedAt'
+                ]
+            }],
+            order: [
+                ['createdAt', 'DESC']
+            ]
+        });
+
+        return res.status(200).json({
+            success: true,
+            alerts
+        });
+
     } catch (error) {
         console.error('Error fetching alerts:', error);
-        res.status(500).json({ error: 'Failed to fetch notifications' });
+
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to fetch notifications'
+        });
     }
 };
+
 
 module.exports = {
     getAlertforContact
 };
-

@@ -30,97 +30,75 @@ const createEmergency = async (
 
     try {
 
-        // Get user details
+        // ---------------------------------------------------------
+        // GET USER
+        // ---------------------------------------------------------
 
-        const user =
-            await User.findByPk(userId);
-
+        const user = await User.findByPk(userId);
 
         if (!user) {
-            throw new Error(
-                'User not found'
-            );
+            throw new Error('User not found');
         }
 
 
-        // Create emergency record
+        // ---------------------------------------------------------
+        // CREATE EMERGENCY
+        // ---------------------------------------------------------
 
-        const emergency =
-            await Emergency.create({
-
-                userId,
-
-                latitude,
-
-                longitude,
-
-                address
-
-            });
+        const emergency = await Emergency.create({
+            userId,
+            latitude,
+            longitude,
+            address
+        });
 
 
-        // Get user's emergency contacts
+        // ---------------------------------------------------------
+        // GET EMERGENCY CONTACTS
+        // ---------------------------------------------------------
 
-        const contacts =
-            await EmergencyContact.findAll({
-
-                where: {
-                    userId
-                }
-
-            });
-
-
-        // Create notification records
-
-        const notifications =
-            contacts.map(contact => ({
-
-                emergencyId:
-                    emergency.id,
-
-                contactId:
-                    contact.id,
-
-                message:
-                    `URGENT SOS! I need help. Location: ${latitude}, ${longitude}`,
-
-                type:
-                    'SOS_ALERT',
-
-                status:
-                    'PENDING'
-
-            }));
+        const contacts = await EmergencyContact.findAll({
+            where: {
+                userId
+            }
+        });
 
 
-        if (
-            notifications.length > 0
-        ) {
+        // ---------------------------------------------------------
+        // CREATE NOTIFICATION RECORDS
+        // ---------------------------------------------------------
 
-            await Notification.bulkCreate(
-                notifications
-            );
+        const notificationData = contacts.map(contact => ({
+            emergencyId: emergency.id,
+            contactId: contact.id,
+            message:
+                `URGENT SOS! I need help. Location: ${latitude}, ${longitude}`,
+            type: 'SOS_ALERT',
+            status: 'PENDING'
+        }));
+
+
+        let notificationRecords = [];
+
+        if (notificationData.length > 0) {
+            notificationRecords =
+                await Notification.bulkCreate(
+                    notificationData
+                );
         }
 
 
-
-        /* =====================================================
-           GOOGLE MAPS LOCATION
-        ===================================================== */
+        // ---------------------------------------------------------
+        // GOOGLE MAPS LINK
+        // ---------------------------------------------------------
 
         const googleMapsLink =
             `https://maps.google.com/?q=${latitude},${longitude}`;
 
 
-
-        /* =====================================================
-           EMERGENCY MESSAGE
-
-           Same message is used for:
-           - Vonage SMS
-           - logging
-        ===================================================== */
+        // ---------------------------------------------------------
+        // MESSAGE
+        // ---------------------------------------------------------
 
         const message =
 `🚨 EMERGENCY ALERT from ${user.name || 'SafeHer User'}!
@@ -135,24 +113,9 @@ Please contact me immediately.
 Sent from SafeHer`;
 
 
-
-        /* =====================================================
-           SEND ALERTS
-
-           Twilio  → WhatsApp
-           Vonage  → SMS
-
-           IMPORTANT:
-           This is the ONLY place where both providers
-           are called.
-
-           This prevents duplicate SOS sending.
-        ===================================================== */
-
-        console.log(
-            `📱 Sending emergency alerts to ${contacts.length} contact(s)...`
-        );
-
+        // ---------------------------------------------------------
+        // DELIVERY COUNTERS
+        // ---------------------------------------------------------
 
         let whatsappSent = 0;
         let whatsappFailed = 0;
@@ -160,93 +123,189 @@ Sent from SafeHer`;
         let smsSent = 0;
         let smsFailed = 0;
 
+        let contactsNotified = 0;
+        let contactsFailed = 0;
 
-        for (
-            const contact of contacts
-        ) {
 
-            if (
-                !contact ||
-                !contact.phone
-            ) {
+        // ---------------------------------------------------------
+        // SEND ALERTS
+        // ---------------------------------------------------------
+
+        for (const contact of contacts) {
+
+            const notification =
+                notificationRecords.find(
+                    record =>
+                        record.contactId === contact.id
+                );
+
+
+            let whatsappResult = {
+                success: false,
+                reason: 'Not attempted'
+            };
+
+            let smsResult = {
+                success: false,
+                reason: 'Not attempted'
+            };
+
+
+            // -----------------------------------------------------
+            // INVALID PHONE
+            // -----------------------------------------------------
+
+            if (!contact.phone) {
 
                 console.warn(
                     '⚠️ Contact has no phone number:',
-                    contact
+                    contact.id
                 );
-
-                whatsappFailed++;
-                smsFailed++;
-
-                continue;
-            }
-
-
-            console.log(
-                `\n📱 Emergency contact: ${contact.phone}`
-            );
-
-
-            /* =================================================
-               1. TWILIO → WHATSAPP
-            ================================================= */
-
-            const whatsappResult =
-                await sendWhatsApp(
-                    contact.phone,
-                    message,
-                    user.name || 'SafeHer User',
-                    googleMapsLink
-                );
-
-
-            if (
-                whatsappResult.success
-            ) {
-
-                whatsappSent++;
 
             } else {
 
-                whatsappFailed++;
+                // -------------------------------------------------
+                // WHATSAPP
+                // -------------------------------------------------
+
+                try {
+
+                    whatsappResult =
+                        await sendWhatsApp(
+                            contact.phone,
+                            message,
+                            user.name || 'SafeHer User',
+                            googleMapsLink
+                        );
+
+                } catch (error) {
+
+                    console.error(
+                        '❌ WhatsApp exception:',
+                        error.message
+                    );
+
+                    whatsappResult = {
+                        success: false,
+                        reason: error.message
+                    };
+                }
+
+
+                if (whatsappResult.success) {
+                    whatsappSent++;
+                } else {
+                    whatsappFailed++;
+                }
+
+
+                // -------------------------------------------------
+                // SMS
+                // -------------------------------------------------
+
+                try {
+
+                    smsResult =
+                        await sendSMS(
+                            contact.phone,
+                            message
+                        );
+
+                } catch (error) {
+
+                    console.error(
+                        '❌ SMS exception:',
+                        error.message
+                    );
+
+                    smsResult = {
+                        success: false,
+                        reason: error.message
+                    };
+                }
+
+
+                if (smsResult.success) {
+                    smsSent++;
+                } else {
+                    smsFailed++;
+                }
 
             }
 
 
+            // -----------------------------------------------------
+            // UPDATE NOTIFICATION STATUS
+            //
+            // SENT = at least one channel succeeded
+            // FAILED = both channels failed
+            // -----------------------------------------------------
 
-            /* =================================================
-               2. VONAGE → SMS
-            ================================================= */
-
-            const smsResult =
-                await sendSMS(
-                    contact.phone,
-                    message
-                );
+            const contactNotified =
+                whatsappResult.success ||
+                smsResult.success;
 
 
-            if (
-                smsResult.success
-            ) {
+            if (contactNotified) {
 
-                smsSent++;
+                contactsNotified++;
+
+                if (notification) {
+
+                    await notification.update({
+                        status: 'SENT',
+                        sentAt: new Date()
+                    });
+
+                }
 
             } else {
 
-                smsFailed++;
+                contactsFailed++;
+
+                if (notification) {
+
+                    await notification.update({
+                        status: 'FAILED',
+                        sentAt: null
+                    });
+
+                }
 
             }
 
         }
 
 
+        // ---------------------------------------------------------
+        // TOTALS
+        // ---------------------------------------------------------
 
-        /* =====================================================
-           ALERT SUMMARY
-        ===================================================== */
+        const totalSent =
+            whatsappSent + smsSent;
+
+        const totalFailed =
+            whatsappFailed + smsFailed;
+
+
+        // ---------------------------------------------------------
+        // LOG SUMMARY
+        // ---------------------------------------------------------
 
         console.log(
             '\n📊 EMERGENCY ALERT SUMMARY'
+        );
+
+        console.log(
+            `   👥 Contacts: ${contacts.length}`
+        );
+
+        console.log(
+            `   ✅ Contacts notified: ${contactsNotified}`
+        );
+
+        console.log(
+            `   ❌ Contacts failed: ${contactsFailed}`
         );
 
         console.log(
@@ -254,57 +313,36 @@ Sent from SafeHer`;
         );
 
         console.log(
-            `   📩 SMS:      ${smsSent} sent, ${smsFailed} failed`
+            `   📩 SMS: ${smsSent} sent, ${smsFailed} failed`
         );
 
 
-        console.log(
-            '✅ Emergency created'
-        );
-
-
-
-        /* =====================================================
-           RETURN RESPONSE
-
-           Keep smsSent / smsFailed so existing frontend
-           does not break.
-
-           WhatsApp results are also returned separately.
-        ===================================================== */
+        // ---------------------------------------------------------
+        // RETURN
+        // ---------------------------------------------------------
 
         return {
 
             emergency,
 
             notifications:
-                notifications.length,
+                notificationRecords.length,
 
+            contactsNotified,
 
-            // WhatsApp
+            contactsFailed,
 
             whatsappSent,
 
             whatsappFailed,
 
-
-            // SMS
-
             smsSent,
 
             smsFailed,
 
+            totalSent,
 
-            // Total successful deliveries
-
-            totalSent:
-                whatsappSent + smsSent,
-
-
-            // Total failed attempts
-
-            totalFailed:
-                whatsappFailed + smsFailed
+            totalFailed
 
         };
 
@@ -367,15 +405,19 @@ const getAllEmergencies = async (
 ========================================================= */
 
 const resolveEmergency = async (
-    emergencyId
+    emergencyId,
+    userId
 ) => {
 
     try {
 
         const emergency =
-            await Emergency.findByPk(
-                emergencyId
-            );
+            await Emergency.findOne({
+                where: {
+                    id: emergencyId,
+                    userId: userId
+                }
+            });
 
 
         if (!emergency) {

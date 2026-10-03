@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { setAuthFailureHandler } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -10,6 +11,15 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     loadStoredAuth();
+  }, []);
+
+  useEffect(() => {
+    const unregister = setAuthFailureHandler(() => {
+      setToken(null);
+      setUser(null);
+    });
+
+    return unregister;
   }, []);
 
   const loadStoredAuth = async () => {
@@ -50,8 +60,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = async (updatedUser) => {
+    try {
+      await AsyncStorage.setItem(
+        'user',
+        JSON.stringify(updatedUser)
+      );
+
+      setUser(updatedUser);
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, loading , updateUser }}>
       {children}
     </AuthContext.Provider>
   );
@@ -64,3 +87,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

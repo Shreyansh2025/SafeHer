@@ -43,49 +43,144 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const triggerSOS = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      // Request location permission
-      const { status } = await Location.requestForegroundPermissionsAsync();
+    // Request location permission
+    const { status } =
+      await Location.requestForegroundPermissionsAsync();
 
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to send SOS alerts.');
-        return;
-      }
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission Denied',
+        'Location permission is required to send SOS alerts.'
+      );
+      return;
+    }
 
-      // Get current location
-      const location = await Location.getCurrentPositionAsync({
+    // Get current location
+    const location =
+      await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
 
-      const emergencyData = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        message: 'Emergency! I need help.',
-      };
+    const emergencyData = {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+      message: 'Emergency! I need help.',
+    };
 
-      console.log('📍 Sending SOS with location:', emergencyData);
+    console.log(
+      '📍 Sending SOS with location:',
+      emergencyData
+    );
 
-      const response = await emergencyAPI.trigger(emergencyData);
+    const response =
+      await emergencyAPI.trigger(emergencyData);
 
-      console.log('✅ SOS Response:', response.data);
+    console.log(
+      '✅ SOS Response:',
+      response.data
+    );
 
-      Alert.alert(
-        '✅ SOS Alert Sent!',
-        `Emergency recorded!\n\nLocation: ${location.coords.latitude.toFixed(6)}, ${location.coords.longitude.toFixed(6)}\n\n⚠️ Note: Add emergency contacts so they can be notified!`,
-        [{ text: 'OK', onPress: () => navigation.navigate('Contacts') }]
-      );
-    } catch (error) {
-      console.error('❌ SOS Error:', error.response?.data || error.message);
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || error.message || 'Failed to send SOS alert'
-      );
-    } finally {
-      setLoading(false);
+    // --------------------------------------------------
+    // READ BACKEND DELIVERY RESULT
+    // --------------------------------------------------
+
+    const result = response?.data?.emergency;
+
+    const contactsNotified =
+      result?.contactsNotified ?? 0;
+
+    const contactsFailed =
+      result?.contactsFailed ?? 0;
+
+    const totalContacts =
+      result?.notifications ?? 0;
+
+    // --------------------------------------------------
+    // BUILD USER MESSAGE
+    // --------------------------------------------------
+
+    let title = '⚠️ SOS Recorded';
+    let message = '';
+
+    // No emergency contacts
+    if (totalContacts === 0) {
+      message =
+        'Emergency was recorded successfully, but you have no emergency contacts configured.';
     }
-  };
+
+    // All contacts failed
+    else if (
+      contactsNotified === 0 &&
+      contactsFailed > 0
+    ) {
+      title = '⚠️ SOS Recorded';
+
+      message =
+        'Emergency was recorded, but no emergency contact could be notified.';
+    }
+
+    // Some contacts succeeded
+    else if (
+      contactsNotified > 0 &&
+      contactsFailed > 0
+    ) {
+      title = '⚠️ SOS Partially Sent';
+
+      message =
+        `Emergency was recorded.\n\n` +
+        `${contactsNotified} contact(s) were notified successfully.\n` +
+        `${contactsFailed} contact(s) could not be notified.`;
+    }
+
+    // All contacts succeeded
+    else if (
+      contactsNotified > 0 &&
+      contactsFailed === 0
+    ) {
+      title = '✅ SOS Alert Sent';
+
+      message =
+        `Emergency recorded and ${contactsNotified} contact(s) were notified successfully.`;
+    }
+
+    // Add location information
+    message +=
+      `\n\nLocation: ` +
+      `${location.coords.latitude.toFixed(6)}, ` +
+      `${location.coords.longitude.toFixed(6)}`;
+
+    Alert.alert(
+      title,
+      message,
+      [
+        {
+          text: 'OK',
+          onPress: () =>
+            navigation.navigate('Contacts'),
+        },
+      ]
+    );
+
+  } catch (error) {
+    console.error(
+      '❌ SOS Error:',
+      error.response?.data || error.message
+    );
+
+    Alert.alert(
+      'Error',
+      error.response?.data?.message ||
+        error.message ||
+        'Failed to send SOS alert'
+    );
+
+  } finally {
+    setLoading(false);
+  }
+};
 
   const quickActions = [
     {

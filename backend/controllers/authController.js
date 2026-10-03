@@ -1,15 +1,25 @@
-const { registerService,loginService } = require("../services/authservice");
+const {
+    registerService,
+    loginService
+} = require("../services/authservice");
 
+
+// REGISTER
 const register = async (req, res) => {
     try {
-        
-        const { name, email,phone, password,role} = req.body;
+
+        const {
+            name,
+            email,
+            phone,
+            password
+        } = req.body;
 
         // Validation
-        if (!name || !email || !password || !phone || !role) {
+        if (!name || !email || !password || !phone) {
             return res.status(400).json({
                 success: false,
-                message: "Name, email and password are required"
+                message: "Name, email, phone and password are required"
             });
         }
 
@@ -17,10 +27,9 @@ const register = async (req, res) => {
             name,
             email,
             phone,
-            password,
-            role
+            password
         );
-        
+
         return res.status(201).json({
             success: true,
             message: "Registration successful",
@@ -29,7 +38,7 @@ const register = async (req, res) => {
 
     } catch (error) {
 
-        console.log(error);
+        console.log("Registration error:", error);
 
         if (error.message) {
             return res.status(409).json({

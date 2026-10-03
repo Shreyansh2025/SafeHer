@@ -19,24 +19,14 @@ const {
 // =========================================================
 
 // Twilio → WhatsApp
-
 const {
     initializeTwilio
 } = require('./services/twilioService');
 
-
 // Vonage → SMS
-
 const {
     initializeVonage
 } = require('./services/vonageService');
-
-
-// Initialize providers
-
-initializeTwilio();
-
-initializeVonage();
 
 
 // =========================================================
@@ -45,6 +35,9 @@ initializeVonage();
 
 const authRoute =
     require('./routes/authRoute');
+
+const profileRoutes =
+    require('./routes/profileRoutes');
 
 const emergencyContactRoutes =
     require('./routes/emergencyContactRoutes');
@@ -160,6 +153,14 @@ app.use(
 );
 
 
+// Profile
+
+app.use(
+    '/api/profile',
+    profileRoutes
+);
+
+
 // =========================================================
 // SOCKET.IO
 // =========================================================
@@ -214,33 +215,77 @@ const PORT =
     process.env.PORT || 3000;
 
 
-server.listen(
-    PORT,
-    () => {
+const startServer = async () => {
+
+    try {
+
+        // -------------------------------------------------
+        // DATABASE CONNECTION
+        // -------------------------------------------------
+
+        await sequelize.authenticate();
 
         console.log(
-            `🚀 Server is running on port ${PORT}`
+            '✅ Database connection established successfully.'
         );
 
 
-        // Verify database connection
+        // -------------------------------------------------
+        // DATABASE SYNC
+        // -------------------------------------------------
 
-        sequelize.authenticate()
+        await sequelize.sync();
 
-            .then(
-                () =>
-                    console.log(
-                        '✅ Database connection established successfully.'
-                    )
-            )
+        console.log(
+            '✅ Database models synchronized successfully.'
+        );
 
-            .catch(
-                (err) =>
-                    console.error(
-                        '❌ Unable to connect to the database:',
-                        err
-                    )
-            );
+
+        // -------------------------------------------------
+        // PROVIDER INITIALIZATION
+        // -------------------------------------------------
+
+        initializeTwilio();
+
+        initializeVonage();
+
+
+        console.log(
+            '✅ Notification providers initialized.'
+        );
+
+
+        // -------------------------------------------------
+        // START HTTP SERVER
+        // -------------------------------------------------
+
+        server.listen(
+            PORT,
+            () => {
+
+                console.log(
+                    `🚀 Server is running on port ${PORT}`
+                );
+
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            '❌ Server startup failed:',
+            error
+        );
+
+        process.exit(1);
 
     }
-);
+
+};
+
+
+// =========================================================
+// BOOTSTRAP
+// =========================================================
+
+startServer();
