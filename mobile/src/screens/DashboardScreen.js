@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,84 @@ import * as Location from 'expo-location';
 import { COLORS, SPACING, RADIUS, SHADOW } from '../utils/constants';
 import { useAuth } from '../context/AuthContext';
 import { emergencyAPI } from '../services/api';
+import { Accelerometer } from 'expo-sensors';
+import {
+  socket,
+  connectSocket,
+  disconnectSocket,
+  sendLocation,
+} from '../services/socket';
 
 export default function DashboardScreen({ navigation }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const sosRunningRef = useRef(false);
 
+  useEffect(() => {
+  let locationSubscription = null;
+
+  const startTracking = async () => {
+    try {
+      connectSocket();
+
+      const { status } =
+        await Location.requestForegroundPermissionsAsync();
+
+      if (status !== 'granted') {
+        console.log('❌ Location permission denied');
+        return;
+      }
+
+      console.log('✅ Starting GPS watcher');
+
+      locationSubscription =
+        await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 1000,
+            distanceInterval: 0,
+          },
+          (location) => {
+            const { latitude, longitude } = location.coords;
+
+            console.log(
+              '📍 GPS update:',
+              latitude,
+              longitude
+            );
+
+            if (socket.connected) {
+              sendLocation({
+                userId: user?.id,
+                latitude,
+                longitude,
+              });
+
+              console.log('📡 Location sent to socket');
+            } else {
+              console.log('❌ Socket not connected');
+            }
+          }
+        );
+
+    } catch (error) {
+      console.log(
+        '❌ Location tracking error:',
+        error.message
+      );
+    }
+  };
+
+  startTracking();
+
+  return () => {
+    if (locationSubscription) {
+      locationSubscription.remove();
+    }
+
+    disconnectSocket();
+  };
+}, []);
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good Morning';
@@ -43,6 +116,12 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const triggerSOS = async () => {
+    if (sosRunningRef.current) {
+  console.log('⚠️ SOS already in progress');
+  return;
+}
+
+sosRunningRef.current = true;
   try {
     setLoading(true);
 
@@ -178,6 +257,7 @@ export default function DashboardScreen({ navigation }) {
     );
 
   } finally {
+    sosRunningRef.current = false;
     setLoading(false);
   }
 };
@@ -212,6 +292,39 @@ export default function DashboardScreen({ navigation }) {
       onPress: () => Alert.alert('Coming Soon', 'Settings coming soon!'),
     },
   ];
+  // =========================================================
+// SHAKE / GESTURE SOS
+// =========================================================
+
+const lastShakeRef = useRef(0);
+
+useEffect(() => {
+  Accelerometer.setUpdateInterval(150);
+
+  const subscription = Accelerometer.addListener(({ x, y, z }) => {
+    const acceleration = Math.sqrt(
+      x * x + y * y + z * z
+    );
+
+    const now = Date.now();
+
+    // Strong shake detected
+    if (
+      acceleration > 2.4 &&
+      now - lastShakeRef.current > 5000
+    ) {
+      lastShakeRef.current = now;
+
+      console.log('🚨 Gesture SOS triggered');
+
+      triggerSOS();
+    }
+  });
+
+  return () => {
+    subscription.remove();
+  };
+}, []);
 
   return (
     <ScrollView style={styles.container}>

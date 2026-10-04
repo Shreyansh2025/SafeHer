@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { COLORS } from '../utils/constants';
 import DashboardScreen from '../screens/DashboardScreen';
+import MapScreen from '../screens/MapScreen';
 import ContactsScreen from '../screens/ContactsScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -46,6 +47,17 @@ export default function MainNavigator() {
           tabBarLabel: 'Home',
           tabBarIcon: ({ color, size }) => (
             <TabIcon emoji="🏠" color={color} size={size} />
+          ),
+          headerShown: false,
+        }}
+      />
+      <Tab.Screen
+        name="Map"
+        component={MapScreen}
+        options={{
+          tabBarLabel: 'Map',
+          tabBarIcon: ({ color, size }) => (
+            <TabIcon emoji="🗺️" color={color} size={size} />
           ),
           headerShown: false,
         }}
