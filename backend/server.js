@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 
 require('dotenv').config();
 
@@ -10,7 +11,8 @@ require('dotenv').config();
 // =========================================================
 
 const {
-    sequelize
+    sequelize,
+    Emergency
 } = require('./models/relation');
 
 
@@ -165,31 +167,148 @@ app.use(
 // SOCKET.IO
 // =========================================================
 
+io.use((socket, next) => {
+    try {
+        const token = socket.handshake.auth?.token;
+
+        if (!token) {
+            return next(
+                new Error('Authentication token is required')
+            );
+        }
+
+        const decoded = jwt.verify(
+            token,
+            process.env.JWT_SECRET
+        );
+
+        socket.user = decoded;
+
+        next();
+
+    } catch (error) {
+        next(new Error('Invalid or expired token'));
+    }
+});
+
+
 io.on(
     'connection',
     (socket) => {
 
         console.log(
-            `📡 New device connected: ${socket.id}`
+            `📡 Authenticated device connected: ${socket.id} | User ${socket.user.id}`
         );
 
+socket.on(
+    'joinEmergency',
+    async (emergencyId) => {
 
-        socket.on(
-            'sendLocation',
-            (data) => {
+        try {
+
+            const emergency =
+                await Emergency.findOne({
+                    where: {
+                        id: emergencyId,
+                        userId: socket.user.id,
+                        status: 'ACTIVE'
+                    }
+                });
+
+            if (!emergency) {
 
                 console.log(
-                    `📍 Location update from User ${data.userId}: ${data.latitude}, ${data.longitude}`
+                    `❌ User ${socket.user.id} denied access to Emergency ${emergencyId}`
                 );
 
-
-                io.emit(
-                    'receiveLocation',
-                    data
+                socket.emit(
+                    'emergencyAccessDenied',
+                    {
+                        emergencyId
+                    }
                 );
 
+                return;
+            }
+
+            const room =
+                `emergency:${emergencyId}`;
+
+            socket.join(room);
+
+            console.log(
+                `✅ User ${socket.user.id} joined ${room}`
+            );
+
+            // Tell frontend that room join succeeded
+            socket.emit(
+                'emergencyJoined',
+                {
+                    emergencyId
+                }
+            );
+
+        } catch (error) {
+
+            console.error(
+                '❌ Emergency room error:',
+                error
+            );
+
+            socket.emit(
+                'emergencyAccessDenied',
+                {
+                    emergencyId
+                }
+            );
+        }
+    }
+);
+        socket.on(
+    'sendLocation',
+    (data) => {
+
+        const {
+            emergencyId,
+            latitude,
+            longitude
+        } = data || {};
+
+        if (
+            !emergencyId ||
+            latitude === undefined ||
+            longitude === undefined
+        ) {
+            return;
+        }
+
+        const room =
+            `emergency:${emergencyId}`;
+
+        // User must actually be inside this emergency room
+        if (!socket.rooms.has(room)) {
+            console.log(
+                `❌ User ${socket.user.id} attempted unauthorized location update`
+            );
+
+            return;
+        }
+
+        console.log(
+            `📍 Emergency ${emergencyId} | User ${socket.user.id}: ${latitude}, ${longitude}`
+        );
+
+        io.to(room).emit(
+            'receiveLocation',
+            {
+                emergencyId,
+                userId: socket.user.id,
+                latitude,
+                longitude
             }
         );
+    }
+);
 
 
         socket.on(
