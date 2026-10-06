@@ -7,13 +7,13 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "plugins": [
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "SafeHer needs access to your location to send emergency alerts with your current position."
-        }
-      ]
-    ],
+  [
+    "expo-location",
+    {
+      "locationAlwaysAndWhenInUsePermission": "SafeHer needs access to your location to send emergency alerts with your current position."
+    }
+  ]
+],
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
