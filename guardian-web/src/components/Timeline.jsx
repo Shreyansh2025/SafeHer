@@ -8,8 +8,11 @@ export default function Timeline({ items = [] }) {
         <p className="muted-note">No events yet.</p>
       ) : (
         <ol className="timeline">
-          {items.map((item, i) => (
-            <li key={i} className="timeline-item">
+          {items.map((item, index) => (
+            <li
+              key={item.id || `${item.time || "event"}-${item.type || index}`}
+              className="timeline-item"
+            >
               <div className="timeline-time">{formatTimeFull(item.time)}</div>
               <div className="timeline-label">{item.label}</div>
             </li>

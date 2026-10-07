@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getEmergencyByToken, getTimelineByToken } from "../services/emergencyService";
+import {
+  getEmergencyByToken,
+  getTimelineByToken,
+} from "../services/emergencyService";
 import { connectToEmergency } from "../services/socketService";
 import EmergencyHeader from "../components/EmergencyHeader";
 import StatusCard from "../components/StatusCard";
@@ -15,57 +18,128 @@ export default function EmergencyPage() {
   const { token } = useParams();
   const [emergency, setEmergency] = useState(null);
   const [timeline, setTimeline] = useState([]);
-  const [live, setLive] = useState(null); // updates pushed over the socket
-  const [state, setState] = useState("loading"); // loading | ready | notfound | error
+  const [live, setLive] = useState(null);
+  const [state, setState] = useState("loading");
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
     setState("loading");
     setLive(null);
+
     Promise.all([getEmergencyByToken(token), getTimelineByToken(token)])
-      .then(([data, tl]) => {
+      .then(([data, timelineData]) => {
+        if (cancelled) return;
         setEmergency(data);
-        setTimeline(tl);
+        setTimeline(timelineData);
         setState("ready");
       })
-      .catch((err) => setState(err.code === "NOT_FOUND" ? "notfound" : "error"));
+      .catch((error) => {
+        if (cancelled) return;
+        setState(error.code === "NOT_FOUND" ? "notfound" : "error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [token, attempt]);
 
-  // Live updates only while the emergency is ACTIVE
   useEffect(() => {
-    if (state !== "ready" || emergency.status !== "ACTIVE") return;
+    if (state !== "ready" || !emergency || emergency.status !== "ACTIVE") {
+      return undefined;
+    }
+
     return connectToEmergency(
       token,
       {
-        onLocationUpdate: (u) =>
-          setLive((prev) => ({
-            ...prev,
-            latitude: u.latitude,
-            longitude: u.longitude,
-            ...(u.accuracy != null && { locationAccuracy: u.accuracy }),
-            lastUpdated: u.timestamp,
-          })),
-        onResolved: (d) =>
-          setLive((prev) => ({ ...prev, status: "RESOLVED", endedAt: d?.endedAt })),
+        onLocationUpdate: (update) => {
+          setLive((previous) => ({
+            ...(previous || {}),
+            latitude: update.latitude,
+            longitude: update.longitude,
+            ...(update.accuracy != null
+              ? { locationAccuracy: update.accuracy }
+              : {}),
+            lastUpdated: update.timestamp,
+          }));
+        },
+
+        onNotificationUpdate: (update) => {
+          setLive((previous) => ({
+            ...(previous || {}),
+            notifications: {
+              ...(emergency.notifications || {}),
+              ...(previous?.notifications || {}),
+              ...update,
+            },
+          }));
+        },
+
+        onTimelineEvent: (event) => {
+          setTimeline((previous) => {
+            const eventKey = `${event.id || ""}|${event.type || ""}|${event.time || ""}|${event.label || ""}`;
+            const exists = previous.some(
+              (item) =>
+                `${item.id || ""}|${item.type || ""}|${item.time || ""}|${item.label || ""}` ===
+                eventKey,
+            );
+
+            if (exists) return previous;
+            return [...previous, event];
+          });
+        },
+
+        onResolved: (data) => {
+          const resolvedAt = data?.endedAt || new Date().toISOString();
+
+          setEmergency((previous) =>
+            previous
+              ? {
+                  ...previous,
+                  status: "RESOLVED",
+                  endedAt: resolvedAt,
+                }
+              : previous,
+          );
+
+          setLive((previous) => ({
+            ...(previous || {}),
+            status: "RESOLVED",
+            endedAt: resolvedAt,
+          }));
+        },
       },
-      emergency
+      emergency,
     );
   }, [state, emergency, token]);
 
   if (state === "loading") return <p className="center-msg">Loading...</p>;
   if (state === "notfound") return <NotFoundPage />;
-  if (state === "error")
+
+  if (state === "error") {
     return (
       <div className="center-msg">
         <h2>Couldn't load the emergency</h2>
         <p>Please check your internet connection and try again.</p>
-        <button className="btn btn-outline" onClick={() => setAttempt((n) => n + 1)}>
+        <button
+          className="btn btn-outline"
+          onClick={() => setAttempt((number) => number + 1)}
+        >
           Retry
         </button>
       </div>
     );
+  }
 
-  const current = { ...emergency, ...live };
+  const current = {
+    ...emergency,
+    ...(live || {}),
+    notifications: {
+      ...(emergency.notifications || {}),
+      ...(live?.notifications || {}),
+    },
+  };
 
   return (
     <div className="page">

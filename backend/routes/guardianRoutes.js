@@ -9,7 +9,10 @@ const guardianController = require('../controllers/guardianController');
 // CORS: only the Guardian Web (and local dev) may call this from a browser.
 const allowedOrigins = [
   (process.env.GUARDIAN_WEB_URL || '').replace(/\/+$/, ''),
-  'http://localhost:5173'
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173'
 ].filter(Boolean);
 
 router.use((req, res, next) => {

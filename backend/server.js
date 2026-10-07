@@ -71,6 +71,7 @@ app.use(express.json());
 
 // Lets emergencyService push "resolved" to guardian browsers
 emergencyService.setIo(io);
+guardianService.setIo(io);
 
 // =========================================================
 // HEALTH CHECK
@@ -133,7 +134,10 @@ io.use(async (socket, next) => {
       return next(new Error("Invalid or expired link"));
     }
 
-    socket.guardian = { emergencyId: link.emergencyId };
+    socket.guardian = {
+      emergencyId: link.emergencyId,
+      expiresAt: link.expiresAt.getTime(),
+    };
 
     return next();
   } catch (error) {
@@ -171,7 +175,24 @@ io.on("connection", (socket) => {
 
     socket.join(guardianRoom);
 
-    socket.emit("guardian:joined");
+    socket.emit("guardian:joined", {
+      emergencyId: socket.guardian.emergencyId,
+      expiresAt: socket.guardian.expiresAt,
+    });
+
+    // Guardian sockets are bearer-token sessions. Close them automatically
+    // when the link expires so an old tab cannot stay connected indefinitely.
+    const remainingMs = socket.guardian.expiresAt - Date.now();
+    if (remainingMs <= 0) {
+      socket.disconnect(true);
+      return;
+    }
+
+    const expiryTimer = setTimeout(() => {
+      socket.disconnect(true);
+    }, remainingMs);
+
+    socket.once("disconnect", () => clearTimeout(expiryTimer));
 
     return;
   }
@@ -220,8 +241,8 @@ io.on("connection", (socket) => {
       });
     }
   });
-  socket.on("sendLocation", (data) => {
-    const { emergencyId, latitude, longitude } = data || {};
+  socket.on("sendLocation", async (data) => {
+    const { emergencyId, latitude, longitude, accuracy } = data || {};
 
     if (!emergencyId || latitude === undefined || longitude === undefined) {
       return;
@@ -229,12 +250,24 @@ io.on("connection", (socket) => {
 
     const room = `emergency:${emergencyId}`;
 
-    // User must actually be inside this emergency room
+    // User must actually be inside this emergency room.
     if (!socket.rooms.has(room)) {
       console.log(
         `❌ User ${socket.user.id} attempted unauthorized location update`,
       );
+      return;
+    }
 
+    const updated = await guardianService.handleLocationUpdate(
+      emergencyId,
+      latitude,
+      longitude,
+    );
+
+    // Do not broadcast stale locations after resolve/cancel or invalid GPS.
+    if (!updated) {
+      socket.leave(room);
+      socket.emit("emergencyEnded", { emergencyId });
       return;
     }
 
@@ -242,20 +275,25 @@ io.on("connection", (socket) => {
       `📍 Emergency ${emergencyId} | User ${socket.user.id}: ${latitude}, ${longitude}`,
     );
 
-    // Guardian Web: save (throttled) + broadcast WITHOUT userId
-    guardianService.handleLocationUpdate(emergencyId, latitude, longitude);
-
-    io.to(`guardian:${emergencyId}`).emit("location:update", {
+    const locationUpdate = {
       latitude: Number(latitude),
       longitude: Number(longitude),
+      ...(accuracy != null && Number.isFinite(Number(accuracy))
+        ? { accuracy: Number(accuracy) }
+        : {}),
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    io.to(`guardian:${emergencyId}`).emit("location:update", locationUpdate);
 
     io.to(room).emit("receiveLocation", {
       emergencyId,
       userId: socket.user.id,
-      latitude,
-      longitude,
+      latitude: Number(latitude),
+      longitude: Number(longitude),
+      ...(accuracy != null && Number.isFinite(Number(accuracy))
+        ? { accuracy: Number(accuracy) }
+        : {}),
     });
   });
 
@@ -269,6 +307,26 @@ io.on("connection", (socket) => {
 // =========================================================
 
 const PORT = process.env.PORT || 3000;
+
+const ensureGuardianSchema = async () => {
+  const queryInterface = sequelize.getQueryInterface();
+  const tableName = Emergency.getTableName();
+  const columns = await queryInterface.describeTable(tableName);
+
+  // Older databases created before Guardian trigger tracking do not have
+  // this column. Add only the missing column instead of altering every table.
+  if (!columns.trigger_type) {
+    const triggerType = Emergency.rawAttributes.triggerType;
+
+    await queryInterface.addColumn(tableName, "trigger_type", {
+      type: triggerType.type,
+      allowNull: false,
+      defaultValue: triggerType.defaultValue,
+    });
+
+    console.log("✅ Added missing Emergency.trigger_type column.");
+  }
+};
 
 const startServer = async () => {
   try {
@@ -285,12 +343,24 @@ const startServer = async () => {
     // -------------------------------------------------
 
     await sequelize.sync();
+    await ensureGuardianSchema();
 
     console.log("✅ Database models synchronized successfully.");
 
     // -------------------------------------------------
     // PROVIDER INITIALIZATION
     // -------------------------------------------------
+
+    const guardianWebUrl = (process.env.GUARDIAN_WEB_URL || "")
+      .trim()
+      .replace(/\/+$/, "");
+    if (guardianWebUrl) {
+      console.log(`🔗 Guardian Web URL: ${guardianWebUrl}`);
+    } else {
+      console.warn(
+        "⚠️ GUARDIAN_WEB_URL is missing. SOS with emergency contacts will be rejected until it is configured.",
+      );
+    }
 
     initializeTwilio();
 
