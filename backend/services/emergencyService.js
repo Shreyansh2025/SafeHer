@@ -23,6 +23,20 @@ const createEmergency = async (userId, latitude, longitude, address) => {
     if (!user) {
       throw new Error("User not found");
     }
+/// CHECK FOR EXISTING ACTIVE EMERGENCY (fix)
+    const activeEmergency = await Emergency.findOne({
+  where: {
+    userId,
+    status: "ACTIVE",
+  },
+});
+
+if (activeEmergency) {
+  const error = new Error("SOS is already active");
+  error.code = "ACTIVE_SOS_EXISTS";
+  error.emergency = activeEmergency;
+  throw error;
+};
 
     // ---------------------------------------------------------
     // CREATE EMERGENCY

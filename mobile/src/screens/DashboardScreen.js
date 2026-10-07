@@ -399,41 +399,41 @@ export default function DashboardScreen({ navigation }) {
   //   }
   // };
 
-  useEffect(() => {
-    let mounted = true;
+  // useEffect(() => {
+  //   let mounted = true;
 
-    const enableVoiceSOS = async () => {
-      try {
-        const permission =
-          await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+  //   const enableVoiceSOS = async () => {
+  //     try {
+  //       const permission =
+  //         await ExpoSpeechRecognitionModule.requestPermissionsAsync();
 
-        if (!permission.granted) {
-          console.log("❌ Voice SOS microphone permission denied");
-          return;
-        }
+  //       if (!permission.granted) {
+  //         console.log("❌ Voice SOS microphone permission denied");
+  //         return;
+  //       }
 
-        if (!mounted) return;
+  //       if (!mounted) return;
 
-        voiceEnabledRef.current = true;
-        startVoiceRecognition();
-      } catch (error) {
-        console.log("❌ Voice SOS initialization error:", error.message);
-      }
-    };
+  //       voiceEnabledRef.current = true;
+  //       startVoiceRecognition();
+  //     } catch (error) {
+  //       console.log("❌ Voice SOS initialization error:", error.message);
+  //     }
+  //   };
 
-    enableVoiceSOS();
+  //   enableVoiceSOS();
 
-    return () => {
-      mounted = false;
-      voiceEnabledRef.current = false;
+  //   return () => {
+  //     mounted = false;
+  //     voiceEnabledRef.current = false;
 
-      if (voiceRestartTimerRef.current) {
-        clearTimeout(voiceRestartTimerRef.current);
-      }
+  //     if (voiceRestartTimerRef.current) {
+  //       clearTimeout(voiceRestartTimerRef.current);
+  //     }
 
-      ExpoSpeechRecognitionModule.abort();
-    };
-  }, []);
+  //     ExpoSpeechRecognitionModule.abort();
+  //   };
+  // }, []);
   // =========================================================
   // QUICK ACTIONS
   // =========================================================

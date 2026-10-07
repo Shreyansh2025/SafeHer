@@ -47,10 +47,18 @@ const trigger = async (req, res) => {
   } catch (error) {
     console.error("❌ Failed to trigger SOS:", error);
 
-    return res.status(500).json({
+  if (error.code === "ACTIVE_SOS_EXISTS") {
+    return res.status(409).json({
       success: false,
-      message: "Failed to trigger SOS",
+      message: "SOS is already active.",
+      emergency: error.emergency,
     });
+  }
+
+  return res.status(500).json({
+    success: false,
+    message: "Failed to trigger SOS",
+  });
   }
 };
 
