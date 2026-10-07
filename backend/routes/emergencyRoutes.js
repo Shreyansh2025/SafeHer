@@ -8,6 +8,10 @@ router.use(authMiddleware);
 
 router.get('/', emergencyController.getAll);
 router.post('/trigger', emergencyController.trigger);
+
+router.post('/test-call', emergencyController.testCall);
+router.post('/test-vonage-call', emergencyController.testVonageCall);
+
 router.put('/:id/resolve', emergencyController.resolve);
 
 module.exports = router;

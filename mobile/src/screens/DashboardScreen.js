@@ -384,20 +384,20 @@ export default function DashboardScreen({ navigation }) {
   //     }, 1000);
   //   }
   // });
-  const startVoiceRecognition = () => {
-    try {
-      ExpoSpeechRecognitionModule.start({
-        lang: "en-US",
-        interimResults: true,
-        maxAlternatives: 1,
-        continuous: true,
-      });
+  // const startVoiceRecognition = () => {
+  //   try {
+  //     ExpoSpeechRecognitionModule.start({
+  //       lang: "en-US",
+  //       interimResults: true,
+  //       maxAlternatives: 1,
+  //       continuous: true,
+  //     });
 
-      console.log(`🎙️ Listening for: "${voiceKeywordRef.current}"`);
-    } catch (error) {
-      console.log("❌ Voice recognition start error:", error.message);
-    }
-  };
+  //     console.log(`🎙️ Listening for: "${voiceKeywordRef.current}"`);
+  //   } catch (error) {
+  //     console.log("❌ Voice recognition start error:", error.message);
+  //   }
+  // };
 
   useEffect(() => {
     let mounted = true;

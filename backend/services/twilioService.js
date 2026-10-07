@@ -5,7 +5,7 @@ let twilioClient = null;
 
 /* =========================================================
    INITIALIZE TWILIO
-   Used for WhatsApp
+   Used for WhatsApp + Voice Calls
 ========================================================= */
 
 const initializeTwilio = () => {
@@ -323,11 +323,123 @@ const sendWhatsApp = async (
 
 
 /* =========================================================
+   MAKE VOICE CALL USING TWILIO
+========================================================= */
+
+const makeVoiceCall = async (to, userName) => {
+
+    if (!twilioClient) {
+        console.log('⚠️ Twilio not initialized - call not placed');
+
+        return {
+            success: false,
+            provider: 'twilio',
+            channel: 'voice',
+            reason: 'Twilio not configured'
+        };
+    }
+
+    const fromNumber =
+        process.env.TWILIO_VOICE_NUMBER ||
+        process.env.TWILIO_PHONE_NUMBER;
+
+    if (!fromNumber) {
+        return {
+            success: false,
+            provider: 'twilio',
+            channel: 'voice',
+            reason: 'TWILIO_VOICE_NUMBER is missing from .env'
+        };
+    }
+
+    try {
+
+        const formattedPhone =
+            formatPhoneNumber(to);
+
+        const call =
+            await twilioClient.calls.create({
+                to: formattedPhone,
+
+                from: fromNumber,
+
+                url: 'https://webhooks.twilio.com/v1/Voice/Template/voice_text_to_speech'
+            });
+
+        console.log(
+            '✅ Twilio call started successfully!'
+        );
+
+        console.log(
+            '   Call SID:',
+            call.sid
+        );
+
+        console.log(
+            '   Status:',
+            call.status
+        );
+
+        return {
+            success: true,
+            provider: 'twilio',
+            channel: 'voice',
+            callId: call.sid,
+            status: call.status
+        };
+
+    } catch (error) {
+
+        console.error(
+            '❌ Twilio voice call failed'
+        );
+
+        console.error(
+            '   Error:',
+            error.message
+        );
+
+        if (error.code) {
+            console.error(
+                '   Twilio error code:',
+                error.code
+            );
+        }
+
+        if (error.status) {
+            console.error(
+                '   HTTP status:',
+                error.status
+            );
+        }
+
+        if (error.moreInfo) {
+            console.error(
+                '   More info:',
+                error.moreInfo
+            );
+        }
+
+        return {
+            success: false,
+            provider: 'twilio',
+            channel: 'voice',
+            reason: error.message,
+            code: error.code,
+            status: error.status,
+            moreInfo: error.moreInfo
+        };
+    }
+};
+
+
+/* =========================================================
    EXPORTS
 ========================================================= */
 
 module.exports = {
     initializeTwilio,
     formatPhoneNumber,
-    sendWhatsApp
+    sendWhatsApp,
+    makeVoiceCall
 };
