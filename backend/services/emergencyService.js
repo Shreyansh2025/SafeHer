@@ -5,9 +5,25 @@ const {
   User,
 } = require("../models/relation");
 
+const guardianService = require("./guardianService");
+
 const { sendWhatsApp } = require("./twilioService");
 
 const { sendSMS ,makeVoiceCall} = require("./vonageService");
+
+/* =========================================================
+   GUARDIAN WEB HELPERS
+   (set from server.js so we can notify guardian browsers)
+========================================================= */
+
+let io = null;
+
+const setIo = (ioInstance) => {
+  io = ioInstance;
+};
+
+const guardianBaseUrl = () =>
+  (process.env.GUARDIAN_WEB_URL || "").replace(/\/+$/, "");
 /* =========================================================
    CREATE EMERGENCY
 ========================================================= */
@@ -23,20 +39,6 @@ const createEmergency = async (userId, latitude, longitude, address) => {
     if (!user) {
       throw new Error("User not found");
     }
-/// CHECK FOR EXISTING ACTIVE EMERGENCY (fix)
-    const activeEmergency = await Emergency.findOne({
-  where: {
-    userId,
-    status: "ACTIVE",
-  },
-});
-
-if (activeEmergency) {
-  const error = new Error("SOS is already active");
-  error.code = "ACTIVE_SOS_EXISTS";
-  error.emergency = activeEmergency;
-  throw error;
-};
 
     // ---------------------------------------------------------
     // CREATE EMERGENCY
@@ -48,6 +50,9 @@ if (activeEmergency) {
       longitude,
       address,
     });
+
+    await guardianService.logEvent(emergency.id, "SOS_TRIGGERED", "SOS triggered");
+    await guardianService.logEvent(emergency.id, "EMERGENCY_CREATED", "Emergency created");
 
     // ---------------------------------------------------------
     // GET EMERGENCY CONTACTS
@@ -130,6 +135,28 @@ if (activeEmergency) {
       };
 
       // -----------------------------------------------------
+      // GUARDIAN LINK (one secure link per contact)
+      // Falls back to the Google Maps link if anything fails,
+      // so the SOS alert is never blocked by Guardian Web.
+      // -----------------------------------------------------
+
+      let guardianLink = null;
+      let guardianUrl = googleMapsLink;
+
+      if (guardianBaseUrl()) {
+        try {
+          guardianLink = await guardianService.createLink(
+            emergency.id,
+            contact.id,
+          );
+
+          guardianUrl = `${guardianBaseUrl()}/e/${guardianLink.token}`;
+        } catch (error) {
+          console.error("⚠️ Guardian link failed, using Maps link:", error.message);
+        }
+      }
+
+      // -----------------------------------------------------
       // INVALID PHONE
       // -----------------------------------------------------
 
@@ -145,7 +172,7 @@ if (activeEmergency) {
             contact.phone,
             message,
             user.name || "SafeHer User",
-            googleMapsLink,
+            guardianUrl,
           );
         } catch (error) {
           console.error("❌ WhatsApp exception:", error.message);
@@ -236,6 +263,22 @@ if (activeEmergency) {
           });
         }
       }
+
+      // -----------------------------------------------------
+      // SAVE CHANNEL STATUS FOR GUARDIAN PAGE
+      // -----------------------------------------------------
+
+      if (guardianLink) {
+        try {
+          await guardianLink.update({
+            whatsappStatus: whatsappResult.success ? "SENT" : "FAILED",
+            smsStatus: smsResult.success ? "SENT" : "NOT_AVAILABLE",
+            callStatus: callResult.success ? "SENT" : "FAILED",
+          });
+        } catch (error) {
+          console.error("⚠️ Could not save channel status:", error.message);
+        }
+      }
     }
 
     // ---------------------------------------------------------
@@ -269,6 +312,23 @@ if (activeEmergency) {
     console.log(`   📊 Total channels sent: ${totalSent}`);
 
     console.log(`   📊 Total channels failed: ${totalFailed}`);
+
+    // ---------------------------------------------------------
+    // TIMELINE EVENTS
+    // ---------------------------------------------------------
+
+    if (whatsappSent > 0) {
+      await guardianService.logEvent(emergency.id, "WHATSAPP_SENT", "WhatsApp notification sent");
+    }
+    if (whatsappFailed > 0) {
+      await guardianService.logEvent(emergency.id, "WHATSAPP_FAILED", "WhatsApp notification failed");
+    }
+    if (callsPlaced > 0) {
+      await guardianService.logEvent(emergency.id, "CALL_PLACED", "Voice call placed");
+    }
+    if (callsFailed > 0) {
+      await guardianService.logEvent(emergency.id, "CALL_FAILED", "Voice call failed");
+    }
 
     // ---------------------------------------------------------
     // RETURN
@@ -351,6 +411,17 @@ const resolveEmergency = async (emergencyId, userId) => {
 
     await emergency.save();
 
+    await guardianService.logEvent(emergency.id, "EMERGENCY_RESOLVED", "Emergency resolved");
+
+    guardianService.forgetEmergency(emergency.id);
+
+    if (io) {
+      io.to(`guardian:${emergency.id}`).emit("emergency:resolved", {
+        status: "RESOLVED",
+        endedAt: emergency.endedAt,
+      });
+    }
+
     return emergency;
   } catch (error) {
     console.error("❌ Error resolving emergency:", error);
@@ -369,4 +440,6 @@ module.exports = {
   getAllEmergencies,
 
   resolveEmergency,
+
+  setIo,
 };

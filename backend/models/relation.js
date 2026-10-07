@@ -5,6 +5,8 @@ const EmergencyContact = require('./EmergencyContact');
 const Emergency = require('./Emergency');
 const Notification = require('./Notification');
 const Admin = require('./Admin');
+const GuardianLink = require('./GuardianLink');
+const EmergencyEvent = require('./EmergencyEvent');
 
 User.hasMany(EmergencyContact, {
     foreignKey: 'userId',
@@ -42,11 +44,41 @@ Notification.belongsTo(EmergencyContact, {
     foreignKey: 'contactId'
 });
 
+// Guardian Web
+Emergency.hasMany(GuardianLink, {
+    foreignKey: 'emergencyId',
+    onDelete: 'CASCADE'
+});
+
+GuardianLink.belongsTo(Emergency, {
+    foreignKey: 'emergencyId'
+});
+
+EmergencyContact.hasMany(GuardianLink, {
+    foreignKey: 'contactId',
+    onDelete: 'CASCADE'
+});
+
+GuardianLink.belongsTo(EmergencyContact, {
+    foreignKey: 'contactId'
+});
+
+Emergency.hasMany(EmergencyEvent, {
+    foreignKey: 'emergencyId',
+    onDelete: 'CASCADE'
+});
+
+EmergencyEvent.belongsTo(Emergency, {
+    foreignKey: 'emergencyId'
+});
+
 module.exports = {
     sequelize,
     User,
     EmergencyContact,
     Emergency,
     Notification,
-    Admin
+    Admin,
+    GuardianLink,
+    EmergencyEvent
 };
