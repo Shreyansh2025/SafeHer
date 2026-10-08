@@ -3,14 +3,37 @@ const Emergency = require("../models/Emergency");
 
 // Admin Login
 const verifyAdmin = async (email, password) => {
-  if (email !== process.env.ADMIN_EMAIL || password !== process.env.ADMIN_PASSWORD) {
-    throw new Error("Invalid admin email or password");
+
+  const adminEmail = (process.env.ADMIN_EMAIL || "")
+    .trim()
+    .toLowerCase();
+
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  // Admin credentials must exist
+  if (!adminEmail || !adminPassword) {
+    throw new Error(
+      "Admin credentials are not configured"
+    );
+  }
+
+  const normalizedEmail = email
+    .trim()
+    .toLowerCase();
+
+  if (
+    normalizedEmail !== adminEmail ||
+    password !== adminPassword
+  ) {
+    throw new Error(
+      "Invalid admin email or password"
+    );
   }
 
   return {
     id: 1,
     name: "SafeHer Admin",
-    email: process.env.ADMIN_EMAIL,
+    email: adminEmail,
     role: "ADMIN",
   };
 };
