@@ -14,42 +14,78 @@ const registerService = async (
     password
 ) => {
 
-    // Check if user already exists
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phone.trim();
+
+    // =====================================================
+    // ADMIN EMAIL PROTECTION
+    // =====================================================
+
+    const adminEmail = (process.env.ADMIN_EMAIL || "")
+        .trim()
+        .toLowerCase();
+
+    if (adminEmail && normalizedEmail === adminEmail) {
+        throw new Error(
+            "This email is reserved for admin use"
+        );
+    }
+
+    // =====================================================
+    // CHECK IF USER ALREADY EXISTS
+    // =====================================================
+
     const existingUser = await User.findOne({
         where: {
             [Op.or]: [
-                { email },
-                { phone }
+                { email: normalizedEmail },
+                { phone: normalizedPhone }
             ]
         }
     });
 
     if (existingUser) {
 
-        if (existingUser.email === email) {
+        if (
+            existingUser.email.trim().toLowerCase() ===
+            normalizedEmail
+        ) {
             throw new Error("Email already exists");
         }
 
-        if (existingUser.phone === phone) {
+        if (
+            existingUser.phone.trim() ===
+            normalizedPhone
+        ) {
             throw new Error("Phone already exists");
         }
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // =====================================================
+    // HASH PASSWORD
+    // =====================================================
 
-    // Create user
-    // IMPORTANT:
-    // Every public registration is always a USER.
+    const hashedPassword = await bcrypt.hash(
+        password,
+        10
+    );
+
+    // =====================================================
+    // CREATE USER
+    // =====================================================
+
     const user = await User.create({
-        name,
-        phone,
-        email,
+        name: name.trim(),
+        phone: normalizedPhone,
+        email: normalizedEmail,
         password: hashedPassword,
         role: "USER"
     });
 
-    // Generate JWT
+    // =====================================================
+    // GENERATE JWT
+    // =====================================================
+
     const token = jwt.sign(
         {
             id: user.id,
@@ -74,33 +110,76 @@ const registerService = async (
     };
 };
 
-
 // LOGIN
 const loginService = async (email, password) => {
 
-    // Find user
+    const normalizedEmail = email
+        .trim()
+        .toLowerCase();
+
+    const adminEmail = (process.env.ADMIN_EMAIL || "")
+        .trim()
+        .toLowerCase();
+
+    // =====================================================
+    // ADMIN EMAIL CANNOT USE NORMAL USER LOGIN
+    // =====================================================
+
+    if (
+        adminEmail &&
+        normalizedEmail === adminEmail
+    ) {
+        throw new Error(
+            "Admin account must use the admin login"
+        );
+    }
+
+    // =====================================================
+    // FIND USER
+    // =====================================================
+
     const user = await User.findOne({
         where: {
-            email: email
+            email: normalizedEmail
         }
     });
 
-    // User not found
     if (!user) {
-        throw new Error("Invalid email or password");
+        throw new Error(
+            "Invalid email or password"
+        );
     }
 
-    // Compare password
-    const isPasswordValid = await bcrypt.compare(
-        password,
-        user.password
-    );
+    // =====================================================
+    // EXTRA PROTECTION
+    // =====================================================
+
+    if (user.role === "ADMIN") {
+        throw new Error(
+            "Admin account must use the admin login"
+        );
+    }
+
+    // =====================================================
+    // PASSWORD
+    // =====================================================
+
+    const isPasswordValid =
+        await bcrypt.compare(
+            password,
+            user.password
+        );
 
     if (!isPasswordValid) {
-        throw new Error("Invalid email or password");
+        throw new Error(
+            "Invalid email or password"
+        );
     }
 
-    // Generate JWT
+    // =====================================================
+    // USER JWT
+    // =====================================================
+
     const token = jwt.sign(
         {
             id: user.id,
@@ -113,7 +192,6 @@ const loginService = async (email, password) => {
         }
     );
 
-    // Return response
     return {
         user: {
             id: user.id,
