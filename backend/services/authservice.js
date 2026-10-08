@@ -2,6 +2,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { Op } = require("sequelize");
+const {generateUserQR} = require("../services/qrservice");
 
 require("dotenv").config();
 
@@ -30,6 +31,7 @@ const registerService = async (
             "This email is reserved for admin use"
         );
     }
+
 
     // =====================================================
     // CHECK IF USER ALREADY EXISTS
@@ -82,6 +84,7 @@ const registerService = async (
         role: "USER"
     });
 
+    const qrCode = await generateUserQR(user);      
     // =====================================================
     // GENERATE JWT
     // =====================================================

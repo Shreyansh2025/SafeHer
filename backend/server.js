@@ -45,6 +45,8 @@ const adminRoutes = require("./routes/adminRoutes");
 
 const iotRoutes = require("./routes/iotRoutes");
 
+const qrRoutes = require("./routes/qrRoutes");
+
 // =========================================================
 // APP
 // =========================================================
@@ -119,6 +121,8 @@ app.use("/api/guardian", guardianRoutes);
 
 // IoT device SOS trigger
 app.use("/api/iot", iotRoutes);
+
+app.use("/qr", qrRoutes);
 // =========================================================
 // SOCKET.IO
 // =========================================================

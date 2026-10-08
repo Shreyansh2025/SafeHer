@@ -2,6 +2,16 @@ import React, { createContext, useState, useContext, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { setAuthFailureHandler } from "../services/api";
 
+const stopBackgroundSosSafely = async () => {
+  try {
+    const { stopBackgroundSOS } = require("../services/backgroundSosService");
+    await stopBackgroundSOS();
+  } catch (error) {
+    // The background module may not be installed in Expo Go.
+    console.log("⚠️ Background SOS cleanup skipped:", error?.message);
+  }
+};
+
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -16,6 +26,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unregister = setAuthFailureHandler(() => {
+      void stopBackgroundSosSafely();
       setToken(null);
       setUser(null);
       setAccountType(null);
@@ -57,6 +68,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      await stopBackgroundSosSafely();
       await AsyncStorage.multiRemove(["token", "user", "accountType"]);
       setToken(null);
       setUser(null);

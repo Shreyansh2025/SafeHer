@@ -9,6 +9,8 @@ import {
   ScrollView,
   ActivityIndicator,
   TextInput,
+  Platform,
+  PermissionsAndroid,
 } from "react-native";
 
 // import {
@@ -77,7 +79,7 @@ export default function DashboardScreen({ navigation }) {
         {
           text: "Send SOS",
           style: "destructive",
-          onPress: triggerSOS,
+          onPress: () => triggerSOS("SOS_BUTTON"),
         },
       ],
     );
@@ -137,7 +139,7 @@ export default function DashboardScreen({ navigation }) {
   // TRIGGER SOS
   // =========================================================
 
-  const triggerSOS = async () => {
+  const triggerSOS = async (triggerType = "SOS_BUTTON") => {
     if (sosRunningRef.current) {
       console.log("⚠️ SOS already in progress");
 
@@ -175,10 +177,9 @@ export default function DashboardScreen({ navigation }) {
 
       const emergencyData = {
         latitude: location.coords.latitude,
-
         longitude: location.coords.longitude,
-
         message: "Emergency! I need help.",
+        triggerType,
       };
 
       console.log(
@@ -357,83 +358,298 @@ export default function DashboardScreen({ navigation }) {
     }
   };
 
-  // useSpeechRecognitionEvent("start", () => {
-  //   console.log("🎙️ Voice SOS listening...");
-  //   setVoiceListening(true);
-  // });
+  // =========================================================
+  // VOICE SOS
+  // =========================================================
 
-  // useSpeechRecognitionEvent("end", () => {
-  //   console.log("🎙️ Voice recognition ended");
-  //   setVoiceListening(false);
+  const getSpeechRecognitionModule = () => {
+    try {
+      return require("expo-speech-recognition").ExpoSpeechRecognitionModule;
+    } catch (error) {
+      console.log(
+        "⚠️ Speech recognition native module unavailable:",
+        error?.message,
+      );
+      return null;
+    }
+  };
 
-  //   if (voiceEnabledRef.current) {
-  //     voiceRestartTimerRef.current = setTimeout(() => {
-  //       startVoiceRecognition();
-  //     }, 500);
-  //   }
-  // });
+  const startVoiceRecognition = () => {
+    const speechModule = getSpeechRecognitionModule();
 
-  // useSpeechRecognitionEvent("error", (event) => {
-  //   console.log("❌ Voice recognition error:", event.error, event.message);
+    if (!speechModule || !voiceEnabledRef.current) return;
 
-  //   setVoiceListening(false);
+    try {
+      const continuous = Platform.OS === "android" && Platform.Version >= 33;
 
-  //   if (voiceEnabledRef.current && event.error !== "aborted") {
-  //     voiceRestartTimerRef.current = setTimeout(() => {
-  //       startVoiceRecognition();
-  //     }, 1000);
-  //   }
-  // });
-  // const startVoiceRecognition = () => {
-  //   try {
-  //     ExpoSpeechRecognitionModule.start({
-  //       lang: "en-US",
-  //       interimResults: true,
-  //       maxAlternatives: 1,
-  //       continuous: true,
-  //     });
+      speechModule.start({
+        lang: "en-US",
+        interimResults: true,
+        maxAlternatives: 1,
+        continuous,
+      });
 
-  //     console.log(`🎙️ Listening for: "${voiceKeywordRef.current}"`);
-  //   } catch (error) {
-  //     console.log("❌ Voice recognition start error:", error.message);
-  //   }
-  // };
+      console.log(`🎙️ Listening for: "${voiceKeywordRef.current}"`);
+    } catch (error) {
+      console.log("❌ Voice recognition start error:", error?.message);
+    }
+  };
 
-  // useEffect(() => {
-  //   let mounted = true;
+  const stopVoiceRecognition = () => {
+    voiceEnabledRef.current = false;
+    setVoiceListening(false);
 
-  //   const enableVoiceSOS = async () => {
-  //     try {
-  //       const permission =
-  //         await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (voiceRestartTimerRef.current) {
+      clearTimeout(voiceRestartTimerRef.current);
+      voiceRestartTimerRef.current = null;
+    }
 
-  //       if (!permission.granted) {
-  //         console.log("❌ Voice SOS microphone permission denied");
-  //         return;
-  //       }
+    const speechModule = getSpeechRecognitionModule();
 
-  //       if (!mounted) return;
+    try {
+      speechModule?.abort();
+    } catch (error) {
+      console.log("⚠️ Voice stop error:", error?.message);
+    }
+  };
 
-  //       voiceEnabledRef.current = true;
-  //       startVoiceRecognition();
-  //     } catch (error) {
-  //       console.log("❌ Voice SOS initialization error:", error.message);
-  //     }
-  //   };
+  const toggleVoiceSOS = async () => {
+    if (voiceEnabledRef.current) {
+      stopVoiceRecognition();
+      return;
+    }
 
-  //   enableVoiceSOS();
+    const speechModule = getSpeechRecognitionModule();
 
-  //   return () => {
-  //     mounted = false;
-  //     voiceEnabledRef.current = false;
+    if (!speechModule) {
+      Alert.alert(
+        "Voice SOS unavailable",
+        "Voice SOS needs a SafeHer development/Android build with the speech-recognition module. Expo Go cannot load this native feature.",
+      );
+      return;
+    }
 
-  //     if (voiceRestartTimerRef.current) {
-  //       clearTimeout(voiceRestartTimerRef.current);
-  //     }
+    try {
+      const permission = await speechModule.requestPermissionsAsync();
 
-  //     ExpoSpeechRecognitionModule.abort();
-  //   };
-  // }, []);
+      if (!permission?.granted) {
+        Alert.alert(
+          "Microphone Permission",
+          "Microphone permission is required for Voice SOS.",
+        );
+        return;
+      }
+
+      if (!speechModule.isRecognitionAvailable()) {
+        Alert.alert(
+          "Speech Recognition Unavailable",
+          "Please enable a speech recognition service on this Android phone.",
+        );
+        return;
+      }
+
+      voiceEnabledRef.current = true;
+      setVoiceListening(true);
+      startVoiceRecognition();
+    } catch (error) {
+      voiceEnabledRef.current = false;
+      setVoiceListening(false);
+      console.log("❌ Voice SOS initialization error:", error?.message);
+      Alert.alert("Voice SOS", error?.message || "Unable to start Voice SOS.");
+    }
+  };
+
+  const normalizeVoiceText = (value) =>
+    String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const voiceMatchesKeyword = (transcript) => {
+    const spoken = normalizeVoiceText(transcript);
+    const target = normalizeVoiceText(voiceKeywordRef.current);
+
+    return Boolean(spoken && target && spoken.includes(target));
+  };
+
+  useEffect(() => {
+    const speechModule = getSpeechRecognitionModule();
+
+    if (!speechModule) return undefined;
+
+    const startSub = speechModule.addListener("start", () => {
+      setVoiceListening(true);
+    });
+
+    const endSub = speechModule.addListener("end", () => {
+      setVoiceListening(false);
+
+      if (voiceEnabledRef.current && !backgroundSosEnabledRef.current) {
+        voiceRestartTimerRef.current = setTimeout(() => {
+          startVoiceRecognition();
+        }, 600);
+      }
+    });
+
+    const errorSub = speechModule.addListener("error", (event) => {
+      console.log("⚠️ Voice recognition error:", event?.error, event?.message);
+
+      setVoiceListening(false);
+
+      if (
+        voiceEnabledRef.current &&
+        !backgroundSosEnabledRef.current &&
+        event?.error !== "aborted"
+      ) {
+        voiceRestartTimerRef.current = setTimeout(() => {
+          startVoiceRecognition();
+        }, 1000);
+      }
+    });
+
+    const resultSub = speechModule.addListener("result", (event) => {
+      const transcript = (event?.results || [])
+        .map((result) => result?.transcript || "")
+        .join(" ");
+
+      if (!voiceEnabledRef.current) return;
+
+      if (voiceMatchesKeyword(transcript)) {
+        console.log(`🚨 Voice SOS keyword detected: ${transcript}`);
+
+        stopVoiceRecognition();
+        triggerSOS("VOICE");
+      }
+    });
+
+    return () => {
+      startSub.remove();
+      endSub.remove();
+      errorSub.remove();
+      resultSub.remove();
+    };
+  }, []);
+
+  const backgroundSosEnabledRef = useRef(false);
+  const [backgroundSosEnabled, setBackgroundSosEnabled] = useState(false);
+
+  useEffect(() => {
+    backgroundSosEnabledRef.current = backgroundSosEnabled;
+  }, [backgroundSosEnabled]);
+
+  useEffect(() => {
+    try {
+      const {
+        isBackgroundSOSRunning,
+      } = require("../services/backgroundSosService");
+      const running = isBackgroundSOSRunning();
+      backgroundSosEnabledRef.current = running;
+      setBackgroundSosEnabled(running);
+    } catch (error) {
+      // Native background module is unavailable in Expo Go.
+    }
+  }, []);
+
+  const enableBackgroundSOS = async () => {
+    if (Platform.OS !== "android") {
+      Alert.alert(
+        "Android only",
+        "Background Voice + Shake SOS is currently implemented for Android.",
+      );
+      return;
+    }
+
+    try {
+      const foreground = await Location.requestForegroundPermissionsAsync();
+
+      if (foreground.status !== "granted") {
+        Alert.alert(
+          "Location Permission",
+          "Location permission is required for background SOS alerts.",
+        );
+        return;
+      }
+
+      const background = await Location.requestBackgroundPermissionsAsync();
+
+      if (background.status !== "granted") {
+        Alert.alert(
+          "Background Location",
+          "Please allow SafeHer to use location in the background so a triggered SOS can include your current location.",
+        );
+        return;
+      }
+
+      const speechModule = getSpeechRecognitionModule();
+
+      if (!speechModule) {
+        Alert.alert(
+          "Background SOS unavailable",
+          "Background SOS needs a SafeHer development/Android build with native speech recognition.",
+        );
+        return;
+      }
+
+      const microphone = await speechModule.requestPermissionsAsync();
+
+      if (!microphone?.granted) {
+        Alert.alert(
+          "Microphone Permission",
+          "Microphone permission is required for background Voice SOS.",
+        );
+        return;
+      }
+
+      if (Platform.Version >= 33) {
+        const notificationResult = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+        );
+
+        if (notificationResult !== PermissionsAndroid.RESULTS.GRANTED) {
+          console.log("⚠️ Notification permission not granted");
+        }
+      }
+
+      if (voiceEnabledRef.current) {
+        stopVoiceRecognition();
+      }
+
+      const {
+        startBackgroundSOS,
+      } = require("../services/backgroundSosService");
+      await startBackgroundSOS(voiceKeywordRef.current);
+
+      backgroundSosEnabledRef.current = true;
+      setBackgroundSosEnabled(true);
+
+      Alert.alert(
+        "🛡️ Background SOS Enabled",
+        `SafeHer will listen for a strong shake or "${voiceKeywordRef.current}" while the app is in the background. A persistent Android notification will stay visible.`,
+      );
+    } catch (error) {
+      backgroundSosEnabledRef.current = false;
+      setBackgroundSosEnabled(false);
+      console.error("❌ Background SOS setup failed:", error?.message);
+      Alert.alert(
+        "Background SOS",
+        error?.message || "Unable to start background SOS.",
+      );
+    }
+  };
+
+  const disableBackgroundSOS = async () => {
+    try {
+      const { stopBackgroundSOS } = require("../services/backgroundSosService");
+      await stopBackgroundSOS();
+    } catch (error) {
+      console.log("⚠️ Background SOS stop error:", error?.message);
+    }
+
+    backgroundSosEnabledRef.current = false;
+    setBackgroundSosEnabled(false);
+  };
+
   // =========================================================
   // QUICK ACTIONS
   // =========================================================
@@ -505,27 +721,29 @@ export default function DashboardScreen({ navigation }) {
   const lastShakeRef = useRef(0);
 
   useEffect(() => {
+    // When the Android background service is enabled, it owns the shake
+    // listener so that there is only one shake trigger active.
+    if (backgroundSosEnabled) {
+      return undefined;
+    }
+
     Accelerometer.setUpdateInterval(150);
 
     const subscription = Accelerometer.addListener(({ x, y, z }) => {
       const acceleration = Math.sqrt(x * x + y * y + z * z);
-
       const now = Date.now();
 
-      // Strong shake detected
       if (acceleration > 2.4 && now - lastShakeRef.current > 5000) {
         lastShakeRef.current = now;
-
-        console.log("🚨 Gesture SOS triggered");
-
-        triggerSOS();
+        console.log("🚨 Foreground shake SOS triggered");
+        triggerSOS("SHAKE");
       }
     });
 
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [backgroundSosEnabled]);
 
   // =========================================================
   // ACTIVE SOS GPS TRACKING
@@ -615,6 +833,40 @@ export default function DashboardScreen({ navigation }) {
         >
           <Text style={styles.voiceSaveText}>Save Trigger Phrase</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.voiceButton,
+            voiceEnabledRef.current && styles.voiceButtonActive,
+          ]}
+          onPress={toggleVoiceSOS}
+        >
+          <Text style={styles.voiceButtonText}>
+            {voiceEnabledRef.current ? "Disable Voice SOS" : "Enable Voice SOS"}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.backgroundSosButton,
+            backgroundSosEnabled && styles.backgroundSosButtonActive,
+          ]}
+          onPress={
+            backgroundSosEnabled ? disableBackgroundSOS : enableBackgroundSOS
+          }
+        >
+          <Text style={styles.backgroundSosButtonText}>
+            {backgroundSosEnabled
+              ? "Disable Background SOS"
+              : "Enable Background SOS"}
+          </Text>
+        </TouchableOpacity>
+
+        <Text style={styles.backgroundSosStatus}>
+          {backgroundSosEnabled
+            ? "🟢 Background: Shake + Voice active"
+            : "⚪ Background: disabled"}
+        </Text>
 
         <Text style={styles.voiceHint}>
           Say "{voiceKeyword}" to trigger SOS
@@ -979,6 +1231,33 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 14,
+  },
+
+  backgroundSosButton: {
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.md,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: COLORS.sos,
+    backgroundColor: "#FFF7F7",
+  },
+
+  backgroundSosButtonActive: {
+    backgroundColor: "#FEE2E2",
+  },
+
+  backgroundSosButtonText: {
+    color: COLORS.sos,
+    fontWeight: "700",
+    fontSize: 14,
+  },
+
+  backgroundSosStatus: {
+    marginTop: SPACING.sm,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    textAlign: "center",
   },
 
   voiceHint: {

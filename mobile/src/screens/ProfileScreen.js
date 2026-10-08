@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,25 +9,26 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-} from 'react-native';
+  Image,
+} from "react-native";
 
-import { COLORS, SPACING, RADIUS, SHADOW } from '../utils/constants';
-import { useAuth } from '../context/AuthContext';
-import { profileAPI } from '../services/api';
+import { COLORS, SPACING, RADIUS, SHADOW } from "../utils/constants";
+import { useAuth } from "../context/AuthContext";
+import { profileAPI } from "../services/api";
 
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuth();
 
   const [editModalVisible, setEditModalVisible] = useState(false);
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
-
+  const [qrModalVisible, setQrModalVisible] = useState(false);
   // --------------------------------------------------
   // LOAD PROFILE
   // --------------------------------------------------
@@ -48,8 +49,8 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       console.error(
-        'Load profile error:',
-        error.response?.data || error.message
+        "Load profile error:",
+        error.response?.data || error.message,
       );
     } finally {
       setLoadingProfile(false);
@@ -60,10 +61,10 @@ export default function ProfileScreen() {
   // OPEN EDIT PROFILE
   // --------------------------------------------------
   const openEditProfile = () => {
-    setName(user?.name || '');
-    setEmail(user?.email || '');
-    setPhone(user?.phone || '');
-    setPassword('');
+    setName(user?.name || "");
+    setEmail(user?.email || "");
+    setPhone(user?.phone || "");
+    setPassword("");
 
     setEditModalVisible(true);
   };
@@ -77,17 +78,17 @@ export default function ProfileScreen() {
     const trimmedPhone = phone.trim();
 
     if (!trimmedName) {
-      Alert.alert('Invalid Name', 'Please enter your name.');
+      Alert.alert("Invalid Name", "Please enter your name.");
       return;
     }
 
     if (!trimmedEmail) {
-      Alert.alert('Invalid Email', 'Please enter your email.');
+      Alert.alert("Invalid Email", "Please enter your email.");
       return;
     }
 
     if (!trimmedPhone) {
-      Alert.alert('Invalid Phone', 'Please enter your phone number.');
+      Alert.alert("Invalid Phone", "Please enter your phone number.");
       return;
     }
 
@@ -95,15 +96,15 @@ export default function ProfileScreen() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(trimmedEmail)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      Alert.alert("Invalid Email", "Please enter a valid email address.");
       return;
     }
 
     // Password validation only when user wants to change it
     if (password.trim() && password.trim().length < 6) {
       Alert.alert(
-        'Invalid Password',
-        'New password must be at least 6 characters.'
+        "Invalid Password",
+        "New password must be at least 6 characters.",
       );
       return;
     }
@@ -127,32 +128,32 @@ export default function ProfileScreen() {
       const updatedUser = response?.data?.data;
 
       if (!updatedUser) {
-        throw new Error('Profile update response is invalid.');
+        throw new Error("Profile update response is invalid.");
       }
 
       // Update AuthContext + AsyncStorage
       await updateUser(updatedUser);
 
       // Clear password field
-      setPassword('');
+      setPassword("");
 
       // Close modal
       setEditModalVisible(false);
 
       Alert.alert(
-        'Profile Updated',
-        'Your profile has been updated successfully.'
+        "Profile Updated",
+        "Your profile has been updated successfully.",
       );
     } catch (error) {
       console.error(
-        'Update profile error:',
-        error.response?.data || error.message
+        "Update profile error:",
+        error.response?.data || error.message,
       );
 
       Alert.alert(
-        'Update Failed',
+        "Update Failed",
         error.response?.data?.message ||
-          'Unable to update your profile. Please try again.'
+          "Unable to update your profile. Please try again.",
       );
     } finally {
       setSaving(false);
@@ -163,21 +164,17 @@ export default function ProfileScreen() {
   // LOGOUT
   // --------------------------------------------------
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: logout,
-        },
-      ]
-    );
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: logout,
+      },
+    ]);
   };
 
   // --------------------------------------------------
@@ -186,64 +183,58 @@ export default function ProfileScreen() {
   const menuItems = [
     {
       id: 1,
-      icon: '👤',
-      title: 'Edit Profile',
-      subtitle: 'Update your personal information',
+      icon: "👤",
+      title: "Edit Profile",
+      subtitle: "Update your personal information",
       onPress: openEditProfile,
     },
     {
+      id: 100,
+      icon: "🔳",
+      title: "My QR Code",
+      subtitle: "Scan QR to fetch all details",
+      onPress: () => setQrModalVisible(true),
+    },
+    {
       id: 2,
-      icon: '🔔',
-      title: 'Notifications',
-      subtitle: 'Manage notification preferences',
+      icon: "🔔",
+      title: "Notifications",
+      subtitle: "Manage notification preferences",
       onPress: () =>
-        Alert.alert(
-          'Coming Soon',
-          'Notification settings coming soon!'
-        ),
+        Alert.alert("Coming Soon", "Notification settings coming soon!"),
     },
     {
       id: 3,
-      icon: '🔒',
-      title: 'Privacy & Security',
-      subtitle: 'Control your privacy settings',
+      icon: "🔒",
+      title: "Privacy & Security",
+      subtitle: "Control your privacy settings",
       onPress: () =>
-        Alert.alert(
-          'Coming Soon',
-          'Privacy settings coming soon!'
-        ),
+        Alert.alert("Coming Soon", "Privacy settings coming soon!"),
     },
     {
       id: 4,
-      icon: '📍',
-      title: 'Location Settings',
-      subtitle: 'Manage location sharing',
+      icon: "📍",
+      title: "Location Settings",
+      subtitle: "Manage location sharing",
       onPress: () =>
-        Alert.alert(
-          'Coming Soon',
-          'Location settings coming soon!'
-        ),
+        Alert.alert("Coming Soon", "Location settings coming soon!"),
     },
     {
       id: 5,
-      icon: '❓',
-      title: 'Help & Support',
-      subtitle: 'Get help and contact support',
-      onPress: () =>
-        Alert.alert(
-          'Coming Soon',
-          'Help center coming soon!'
-        ),
+      icon: "❓",
+      title: "Help & Support",
+      subtitle: "Get help and contact support",
+      onPress: () => Alert.alert("Coming Soon", "Help center coming soon!"),
     },
     {
       id: 6,
-      icon: 'ℹ️',
-      title: 'About SafeHer',
-      subtitle: 'Version 1.0.0',
+      icon: "ℹ️",
+      title: "About SafeHer",
+      subtitle: "Version 1.0.0",
       onPress: () =>
         Alert.alert(
-          'SafeHer',
-          "Women's Safety App\nVersion 1.0.0\n\nYour Safety, Our Priority"
+          "SafeHer",
+          "Women's Safety App\nVersion 1.0.0\n\nYour Safety, Our Priority",
         ),
     },
   ];
@@ -252,13 +243,13 @@ export default function ProfileScreen() {
   // INITIALS
   // --------------------------------------------------
   const getInitials = (profileName) => {
-    if (!profileName) return '??';
+    if (!profileName) return "??";
 
     return profileName
       .trim()
       .split(/\s+/)
       .map((word) => word[0])
-      .join('')
+      .join("")
       .toUpperCase()
       .slice(0, 2);
   };
@@ -276,36 +267,25 @@ export default function ProfileScreen() {
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {getInitials(user?.name)}
-              </Text>
+              <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
             </View>
           </View>
 
-          <Text style={styles.userName}>
-            {user?.name || 'User'}
-          </Text>
+          <Text style={styles.userName}>{user?.name || "User"}</Text>
 
           <Text style={styles.userEmail}>
-            {user?.email || 'user@example.com'}
+            {user?.email || "user@example.com"}
           </Text>
 
           {user?.phone ? (
-            <Text style={styles.userPhone}>
-              {user.phone}
-            </Text>
+            <Text style={styles.userPhone}>{user.phone}</Text>
           ) : null}
 
           {loadingProfile && (
             <View style={styles.profileLoading}>
-              <ActivityIndicator
-                size="small"
-                color={COLORS.primary}
-              />
+              <ActivityIndicator size="small" color={COLORS.primary} />
 
-              <Text style={styles.profileLoadingText}>
-                Loading profile...
-              </Text>
+              <Text style={styles.profileLoadingText}>Loading profile...</Text>
             </View>
           )}
 
@@ -343,19 +323,13 @@ export default function ProfileScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.menuIconContainer}>
-                <Text style={styles.menuIcon}>
-                  {item.icon}
-                </Text>
+                <Text style={styles.menuIcon}>{item.icon}</Text>
               </View>
 
               <View style={styles.menuTextContainer}>
-                <Text style={styles.menuTitle}>
-                  {item.title}
-                </Text>
+                <Text style={styles.menuTitle}>{item.title}</Text>
 
-                <Text style={styles.menuSubtitle}>
-                  {item.subtitle}
-                </Text>
+                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
               </View>
 
               <Text style={styles.chevron}>›</Text>
@@ -371,18 +345,14 @@ export default function ProfileScreen() {
           onPress={handleLogout}
           activeOpacity={0.8}
         >
-          <Text style={styles.logoutText}>
-            Logout
-          </Text>
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
         {/* -------------------------------------------
             FOOTER
         -------------------------------------------- */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Made with ❤️ for women's safety
-          </Text>
+          <Text style={styles.footerText}>Made with ❤️ for women's safety</Text>
         </View>
       </ScrollView>
 
@@ -408,9 +378,7 @@ export default function ProfileScreen() {
               {/* Modal Header */}
               <View style={styles.modalHeader}>
                 <View>
-                  <Text style={styles.modalTitle}>
-                    Edit Profile
-                  </Text>
+                  <Text style={styles.modalTitle}>Edit Profile</Text>
 
                   <Text style={styles.modalSubtitle}>
                     Update your account information
@@ -422,17 +390,13 @@ export default function ProfileScreen() {
                   onPress={() => setEditModalVisible(false)}
                   disabled={saving}
                 >
-                  <Text style={styles.closeButtonText}>
-                    ×
-                  </Text>
+                  <Text style={styles.closeButtonText}>×</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Name */}
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>
-                  Full Name
-                </Text>
+                <Text style={styles.inputLabel}>Full Name</Text>
 
                 <TextInput
                   style={styles.input}
@@ -447,9 +411,7 @@ export default function ProfileScreen() {
 
               {/* Email */}
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>
-                  Email
-                </Text>
+                <Text style={styles.inputLabel}>Email</Text>
 
                 <TextInput
                   style={styles.input}
@@ -466,9 +428,7 @@ export default function ProfileScreen() {
 
               {/* Phone */}
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>
-                  Phone Number
-                </Text>
+                <Text style={styles.inputLabel}>Phone Number</Text>
 
                 <TextInput
                   style={styles.input}
@@ -483,9 +443,7 @@ export default function ProfileScreen() {
 
               {/* Password */}
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>
-                  New Password
-                </Text>
+                <Text style={styles.inputLabel}>New Password</Text>
 
                 <TextInput
                   style={styles.input}
@@ -500,25 +458,20 @@ export default function ProfileScreen() {
                 />
 
                 <Text style={styles.inputHint}>
-                  Minimum 6 characters. Leave empty if you don't
-                  want to change your password.
+                  Minimum 6 characters. Leave empty if you don't want to change
+                  your password.
                 </Text>
               </View>
 
               {/* Buttons */}
               <View style={styles.modalButtons}>
                 <TouchableOpacity
-                  style={[
-                    styles.modalButton,
-                    styles.cancelButton,
-                  ]}
+                  style={[styles.modalButton, styles.cancelButton]}
                   onPress={() => setEditModalVisible(false)}
                   disabled={saving}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.cancelButtonText}>
-                    Cancel
-                  </Text>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -534,13 +487,56 @@ export default function ProfileScreen() {
                   {saving ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.saveButtonText}>
-                      Save Changes
-                    </Text>
+                    <Text style={styles.saveButtonText}>Save Changes</Text>
                   )}
                 </TouchableOpacity>
               </View>
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      {/* =================================================
+          QR CODE MODAL
+      ================================================= */}
+      <Modal
+        visible={qrModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setQrModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>My QR Code</Text>
+                <Text style={styles.modalSubtitle}>
+                  Your personal SafeHer QR
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setQrModalVisible(false)}
+              >
+                <Text style={styles.closeButtonText}>×</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.qrWrapper}>
+              {user?.qrCode ? (
+                <View style={styles.qrBox}>
+                  <Image
+                    source={{ uri: user.qrCode }}
+                    style={styles.qrImage}
+                    resizeMode="contain"
+                  />
+                </View>
+              ) : (
+                <ActivityIndicator size="large" color={COLORS.primary} />
+              )}
+
+              <Text style={styles.qrCaption}>Scan QR to fetch all details</Text>
+            </View>
           </View>
         </View>
       </Modal>
@@ -566,7 +562,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBg,
     padding: SPACING.lg,
     paddingTop: SPACING.xxl,
-    alignItems: 'center',
+    alignItems: "center",
     borderBottomLeftRadius: RADIUS.xl,
     borderBottomRightRadius: RADIUS.xl,
     ...SHADOW,
@@ -581,22 +577,22 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: RADIUS.full,
     backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 4,
-    borderColor: '#fff',
+    borderColor: "#fff",
     ...SHADOW,
   },
 
   avatarText: {
     fontSize: 36,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
   },
 
   userName: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs / 2,
   },
@@ -614,8 +610,8 @@ const styles = StyleSheet.create({
   },
 
   profileLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: SPACING.md,
   },
 
@@ -625,10 +621,33 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
 
+  qrWrapper: {
+    alignItems: "center",
+    paddingVertical: SPACING.lg,
+  },
+
+  qrBox: {
+    backgroundColor: "#fff",
+    padding: 12,
+    borderRadius: RADIUS.md,
+  },
+
+  qrImage: {
+    width: 240,
+    height: 240,
+  },
+
+  qrCaption: {
+    marginTop: SPACING.md,
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+    textAlign: "center",
+  },
   statsContainer: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.background,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
@@ -636,12 +655,12 @@ const styles = StyleSheet.create({
 
   statItem: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
   },
 
   statValue: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.primary,
   },
 
@@ -666,8 +685,8 @@ const styles = StyleSheet.create({
   },
 
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.cardBg,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
@@ -680,8 +699,8 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: RADIUS.md,
     backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: SPACING.md,
   },
 
@@ -695,7 +714,7 @@ const styles = StyleSheet.create({
 
   menuTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs / 2,
   },
@@ -720,14 +739,14 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     padding: SPACING.md,
     borderRadius: RADIUS.lg,
-    alignItems: 'center',
+    alignItems: "center",
     ...SHADOW,
   },
 
   logoutText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 
   /* -------------------------------------------
@@ -736,13 +755,13 @@ const styles = StyleSheet.create({
 
   footer: {
     padding: SPACING.lg,
-    alignItems: 'center',
+    alignItems: "center",
   },
 
   footerText: {
     fontSize: 14,
     color: COLORS.textSecondary,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
 
   /* -------------------------------------------
@@ -751,8 +770,8 @@ const styles = StyleSheet.create({
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
   },
 
   modalContent: {
@@ -760,19 +779,19 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: RADIUS.xl,
     borderTopRightRadius: RADIUS.xl,
     padding: SPACING.lg,
-    maxHeight: '92%',
+    maxHeight: "92%",
   },
 
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: SPACING.lg,
   },
 
   modalTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.textPrimary,
   },
 
@@ -787,8 +806,8 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: RADIUS.full,
     backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   closeButtonText: {
@@ -803,7 +822,7 @@ const styles = StyleSheet.create({
 
   inputLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
@@ -827,7 +846,7 @@ const styles = StyleSheet.create({
   },
 
   modalButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: SPACING.sm,
     paddingBottom: SPACING.sm,
   },
@@ -836,8 +855,8 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     minHeight: 52,
   },
 
@@ -858,13 +877,13 @@ const styles = StyleSheet.create({
 
   cancelButtonText: {
     color: COLORS.textPrimary,
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 15,
   },
 
   saveButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: "#fff",
+    fontWeight: "bold",
     fontSize: 15,
   },
 });

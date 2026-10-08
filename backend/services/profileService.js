@@ -1,6 +1,7 @@
 const { Op } = require("sequelize");
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
+const { generateUserQR } = require("./qrservice");
 
 // GET PROFILE
 const getProfile = async (userId) => {
@@ -11,8 +12,16 @@ const getProfile = async (userId) => {
     if (!user) {
         throw new Error("User not found");
     }
+    const qrCode = await generateUserQR(user);
 
-    return user;
+    return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        qrCode: qrCode
+    };
 };
 
 
@@ -96,13 +105,16 @@ const updateProfile = async (userId, data) => {
 
     await user.save();
 
+    const qrCode = await generateUserQR(user);
+    
     // IMPORTANT: Never return password hash
     return {
         id: user.id,
         name: user.name,
         email: user.email,
         phone: user.phone,
-        role: user.role
+        role: user.role,
+        qrCode: qrCode
     };
 };
 
