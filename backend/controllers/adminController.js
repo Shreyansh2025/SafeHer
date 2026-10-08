@@ -130,4 +130,5 @@ const listUsers = async (req, res) => {
   }
 };
 
+
 module.exports={login,getAllActive,getAllHistory,listUsers}
