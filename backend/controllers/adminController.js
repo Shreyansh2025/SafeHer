@@ -5,9 +5,15 @@ const adminService = require("../services/adminService");
 
 const login = async (req, res) => {
   try {
+
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    if (
+      typeof email !== "string" ||
+      typeof password !== "string" ||
+      !email.trim() ||
+      !password
+    ) {
       return res.status(400).json({
         success: false,
         message: "Email and password are required",
@@ -18,6 +24,13 @@ const login = async (req, res) => {
       email,
       password
     );
+
+    if (!process.env.ADMIN_JWT_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: "Admin JWT secret is not configured",
+      });
+    }
 
     const token = jwt.sign(
       {
@@ -41,13 +54,14 @@ const login = async (req, res) => {
     });
 
   } catch (error) {
+
     return res.status(401).json({
       success: false,
       message: error.message,
     });
+
   }
 };
-
 //get all active emergency
 const getAllActive = async (req, res) => {
   try {

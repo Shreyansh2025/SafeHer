@@ -4,47 +4,64 @@ require("dotenv").config();
 
 const adminMiddleware = (req, res, next) => {
     try {
-        // Get Authorization header
-        const authHeader = req.headers.authorization;
+
+        const authHeader =
+            req.headers.authorization;
 
         if (!authHeader) {
             return res.status(401).json({
+                success: false,
                 message: "Authorization token is required"
             });
         }
 
-        // Extract Bearer TOKEN
-        const token = authHeader.split(" ")[1];
+        const [scheme, token] =
+            authHeader.split(" ");
 
-        if (!token) {
+        if (
+            scheme !== "Bearer" ||
+            !token
+        ) {
             return res.status(401).json({
-                message: "Token is missing"
+                success: false,
+                message: "Invalid authorization format"
             });
         }
 
-        // Verify JWT using admin secret
+        if (!process.env.ADMIN_JWT_SECRET) {
+            return res.status(500).json({
+                success: false,
+                message: "Admin JWT secret is not configured"
+            });
+        }
+
         const decoded = jwt.verify(
             token,
             process.env.ADMIN_JWT_SECRET
         );
 
-        // Check if user has admin role
-        if (decoded.role !== "ADMIN") {
+        if (
+            !decoded ||
+            decoded.role !== "ADMIN"
+        ) {
             return res.status(403).json({
-                message: "Access denied. Admin privileges required."
+                success: false,
+                message:
+                    "Access denied. Admin privileges required."
             });
         }
 
-        // Store admin information in request
         req.admin = decoded;
 
-        // Proceed to next middleware/controller
         next();
 
     } catch (error) {
+
         return res.status(401).json({
-            message: "Invalid or expired token"
+            success: false,
+            message: "Invalid or expired admin token"
         });
+
     }
 };
 
