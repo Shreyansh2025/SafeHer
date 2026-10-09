@@ -123,6 +123,8 @@ app.use("/api/guardian", guardianRoutes);
 app.use("/api/iot", iotRoutes);
 
 app.use("/qr", qrRoutes);
+
+app.use("/api/auth", authRoute);
 // =========================================================
 // SOCKET.IO
 // =========================================================

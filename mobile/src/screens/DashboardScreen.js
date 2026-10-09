@@ -5,12 +5,13 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
   ActivityIndicator,
   TextInput,
   Platform,
   PermissionsAndroid,
+  DeviceEventEmitter,
+  AppState,
 } from "react-native";
 
 // import {
@@ -18,7 +19,6 @@ import {
 //   useSpeechRecognitionEvent,
 // } from "expo-speech-recognition";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAudioPlayer } from "expo-audio";
 
 import * as Location from "expo-location";
 
@@ -31,14 +31,18 @@ import { startEmergencyLocationTracking } from "../services/locationService";
 import { connectSocket, joinEmergency, sendLocation } from "../services/socket";
 
 import { Accelerometer } from "expo-sensors";
+import { createShakeDetector } from "../services/shakeDetection";
+import { ACTIVE_SOS_STORAGE_KEY, startSOSAlarm, stopSOSAlarm } from "../services/sosAudioService";
 
 export default function DashboardScreen({ navigation }) {
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
+  const [sosActive, setSosActive] = useState(false);
+  const [sosFeedback, setSosFeedback] = useState("");
 
   const sosRunningRef = useRef(false);
-  const sirenPlayer = useAudioPlayer(require("../../assets/sos-siren.wav"));
+  const sosActiveRef = useRef(false);
 
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceKeyword, setVoiceKeyword] = useState("SafeHer SOS");
@@ -60,29 +64,9 @@ export default function DashboardScreen({ navigation }) {
     return "Good Evening";
   };
 
-  // =========================================================
-  // SOS CONFIRMATION
-  // =========================================================
-
+  // SOS starts immediately from the button; no blocking confirmation popup.
   const handleSOSPress = () => {
-    Alert.alert(
-      "🚨 Emergency Alert",
-
-      "Are you sure you want to trigger an SOS alert? This will notify all your emergency contacts.",
-
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-
-        {
-          text: "Send SOS",
-          style: "destructive",
-          onPress: () => triggerSOS("SOS_BUTTON"),
-        },
-      ],
-    );
+    void triggerSOS("SOS_BUTTON");
   };
 
   useEffect(() => {
@@ -111,249 +95,127 @@ export default function DashboardScreen({ navigation }) {
   const saveVoiceKeyword = async () => {
     const cleanedKeyword = voiceKeyword.trim();
 
-    if (!cleanedKeyword) {
-      Alert.alert("Invalid Keyword", "Please enter a voice trigger phrase.");
-      return;
-    }
-
     if (cleanedKeyword.length < 3) {
-      Alert.alert(
-        "Invalid Keyword",
-        "Please use a longer phrase to reduce accidental SOS triggers.",
-      );
+      setSosFeedback("Use a trigger phrase with at least 3 characters.");
       return;
     }
 
     try {
       await AsyncStorage.setItem("safeher_voice_keyword", cleanedKeyword);
-
       voiceKeywordRef.current = cleanedKeyword;
       setVoiceKeyword(cleanedKeyword);
-
-      Alert.alert("Voice SOS", `Trigger phrase saved as "${cleanedKeyword}".`);
+      setSosFeedback(`Voice trigger saved: “${cleanedKeyword}”.`);
     } catch (error) {
-      console.log("❌ Failed to save voice keyword:", error.message);
+      console.log("Failed to save voice keyword:", error.message);
+      setSosFeedback("Could not save the voice trigger phrase.");
     }
   };
-  // =========================================================
-  // TRIGGER SOS
-  // =========================================================
 
   const triggerSOS = async (triggerType = "SOS_BUTTON") => {
-    if (sosRunningRef.current) {
-      console.log("⚠️ SOS already in progress");
-
+    if (sosRunningRef.current || sosActiveRef.current) {
+      setSosFeedback("An SOS is already active or being sent.");
       return;
     }
 
     sosRunningRef.current = true;
+    sosActiveRef.current = true;
+    setSosActive(true);
+    setLoading(true);
+    setSosFeedback(`${triggerType === "SHAKE" ? "Shake" : triggerType === "VOICE" ? "Voice phrase" : "SOS button"} detected. Sending alert…`);
+
+    const sosEvent = {
+      status: "PENDING",
+      triggerType,
+      timestamp: Date.now(),
+    };
 
     try {
-      setLoading(true);
+      await AsyncStorage.setItem(ACTIVE_SOS_STORAGE_KEY, JSON.stringify(sosEvent));
+      void startSOSAlarm();
 
-      // -------------------------------------------------------
-      // REQUEST LOCATION PERMISSION
-      // -------------------------------------------------------
+      const currentPermission = await Location.getForegroundPermissionsAsync();
+      const permission = currentPermission.status === "granted"
+        ? currentPermission
+        : await Location.requestForegroundPermissionsAsync();
 
-      const { status } = await Location.requestForegroundPermissionsAsync();
-
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission Denied",
-
-          "Location permission is required to send SOS alerts.",
-        );
-
-        return;
+      if (permission.status !== "granted") {
+        throw new Error("Location permission is required to send an SOS.");
       }
-
-      // -------------------------------------------------------
-      // GET CURRENT LOCATION
-      // -------------------------------------------------------
 
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
 
-      const emergencyData = {
+      const response = await emergencyAPI.trigger({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         message: "Emergency! I need help.",
         triggerType,
-      };
-
-      console.log(
-        "📍 Sending SOS with location:",
-
-        emergencyData,
-      );
-
-      // -------------------------------------------------------
-      // CREATE SOS
-      // -------------------------------------------------------
-
-      const response = await emergencyAPI.trigger(emergencyData);
-
-      console.log(
-        "✅ SOS Response:",
-
-        response.data,
-      );
-      try {
-        sirenPlayer.loop = true;
-        sirenPlayer.volume = 1.0;
-        sirenPlayer.seekTo(0);
-        sirenPlayer.play();
-
-        console.log("🚨 SOS siren started");
-      } catch (sirenError) {
-        console.log("❌ Siren error:", sirenError.message);
-      }
-
-      // =======================================================
-      // GET ACTUAL EMERGENCY ID
-      // =======================================================
-
-      const createdEmergency = response?.data?.emergency?.emergency;
-
-      const emergencyId = createdEmergency?.id;
-
-      if (!emergencyId) {
-        throw new Error("Emergency ID was not returned by server");
-      }
-
-      console.log(
-        "🚨 Active Emergency ID:",
-
-        emergencyId,
-      );
-
-      // =======================================================
-      // CONNECT AUTHENTICATED SOCKET
-      // =======================================================
-
-      await connectSocket();
-
-      await joinEmergency(emergencyId);
-
-      sendLocation({
-        emergencyId,
-
-        latitude: location.coords.latitude,
-
-        longitude: location.coords.longitude,
       });
 
-      console.log("📡 Initial SOS location sent");
+      const emergencyWrapper = response?.data?.emergency;
+      const createdEmergency = emergencyWrapper?.emergency || emergencyWrapper;
+      const emergencyId = createdEmergency?.id || response?.data?.id;
+      const activeEvent = {
+        ...sosEvent,
+        status: "ACTIVE",
+        emergencyId: emergencyId || null,
+      };
 
-      // Start independent GPS tracking
-      await startEmergencyLocationTracking(emergencyId);
+      await AsyncStorage.setItem(ACTIVE_SOS_STORAGE_KEY, JSON.stringify(activeEvent));
+      setSosActive(true);
+      sosActiveRef.current = true;
 
-      console.log("📡 Initial SOS location sent");
-
-      // =======================================================
-      // READ BACKEND DELIVERY RESULT
-      // =======================================================
-
-      const result = response?.data?.emergency;
-
-      const contactsNotified = result?.contactsNotified ?? 0;
-
-      const contactsFailed = result?.contactsFailed ?? 0;
-
-      const totalContacts = result?.notifications ?? 0;
-
-      // =======================================================
-      // BUILD USER MESSAGE
-      // =======================================================
-
-      let title = "⚠️ SOS Recorded";
-
-      let message = "";
-
-      // -------------------------------------------------------
-      // NO CONTACTS
-      // -------------------------------------------------------
-
-      if (totalContacts === 0) {
-        message =
-          "Emergency was recorded successfully, but you have no emergency contacts configured.";
+      if (emergencyId) {
+        try {
+          await connectSocket();
+          await joinEmergency(emergencyId);
+          sendLocation({
+            emergencyId,
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+          await startEmergencyLocationTracking(emergencyId);
+        } catch (trackingError) {
+          // SOS is already recorded; a socket/tracking problem must not undo SOS state.
+          console.error("SOS sent, but live tracking setup failed:", trackingError?.message);
+        }
       }
 
-      // -------------------------------------------------------
-      // ALL CONTACTS FAILED
-      // -------------------------------------------------------
-      else if (contactsNotified === 0 && contactsFailed > 0) {
-        title = "⚠️ SOS Recorded";
-
-        message =
-          "Emergency was recorded, but no emergency contact could be notified.";
-      }
-
-      // -------------------------------------------------------
-      // SOME CONTACTS SUCCEEDED
-      // -------------------------------------------------------
-      else if (contactsNotified > 0 && contactsFailed > 0) {
-        title = "⚠️ SOS Partially Sent";
-
-        message =
-          `Emergency was recorded.\n\n` +
-          `${contactsNotified} contact(s) were notified successfully.\n` +
-          `${contactsFailed} contact(s) could not be notified.`;
-      }
-
-      // -------------------------------------------------------
-      // ALL CONTACTS SUCCEEDED
-      // -------------------------------------------------------
-      else if (contactsNotified > 0 && contactsFailed === 0) {
-        title = "✅ SOS Alert Sent";
-
-        message = `Emergency recorded and ${contactsNotified} contact(s) were notified successfully.`;
-      }
-
-      // =======================================================
-      // ADD LOCATION INFORMATION
-      // =======================================================
-
-      message +=
-        `\n\nLocation: ` +
-        `${location.coords.latitude.toFixed(6)}, ` +
-        `${location.coords.longitude.toFixed(6)}`;
-
-      // =======================================================
-      // SHOW RESULT
-      // =======================================================
-
-      Alert.alert(
-        title,
-
-        message,
-
-        [
-          {
-            text: "OK",
-
-            onPress: () => navigation.navigate("Contacts"),
-          },
-        ],
-      );
+      const result = emergencyWrapper || {};
+      const notified = Number(result.contactsNotified ?? 0);
+      const failed = Number(result.contactsFailed ?? 0);
+      const total = Number(result.notifications ?? 0);
+      let message = "SOS is active.";
+      if (total === 0) message = "SOS is active, but no emergency contacts are configured.";
+      else if (notified === 0 && failed > 0) message = "SOS is active, but contact notifications failed. Check your network/provider settings.";
+      else if (notified > 0 && failed > 0) message = `SOS is active. ${notified} contact(s) notified; ${failed} failed.`;
+      else if (notified > 0) message = `SOS is active. ${notified} contact(s) notified.`;
+      setSosFeedback(message);
+      console.log("SOS successfully triggered:", triggerType, response?.data);
     } catch (error) {
-      console.error(
-        "❌ SOS Error:",
-
-        error.response?.data || error.message,
-      );
-
-      Alert.alert(
-        "Error",
-
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to send SOS alert",
-      );
+      const status = error?.response?.status;
+      if (status === 409) {
+        const activeEvent = {
+          ...sosEvent,
+          status: "ACTIVE",
+          emergencyId: error?.response?.data?.emergency?.id || null,
+        };
+        await AsyncStorage.setItem(ACTIVE_SOS_STORAGE_KEY, JSON.stringify(activeEvent)).catch(() => {});
+        sosActiveRef.current = true;
+        setSosActive(true);
+        setSosFeedback("An SOS is already active. Keep yourself safe; your emergency is still active.");
+        void startSOSAlarm();
+      } else {
+        console.error("SOS trigger failed:", error?.response?.data || error?.message);
+        sosActiveRef.current = false;
+        setSosActive(false);
+        await AsyncStorage.removeItem(ACTIVE_SOS_STORAGE_KEY).catch(() => {});
+        await stopSOSAlarm();
+        setSosFeedback(error?.response?.data?.message || error?.message || "Could not send SOS. Check your network and try again.");
+      }
     } finally {
       sosRunningRef.current = false;
-
       setLoading(false);
     }
   };
@@ -422,10 +284,7 @@ export default function DashboardScreen({ navigation }) {
     const speechModule = getSpeechRecognitionModule();
 
     if (!speechModule) {
-      Alert.alert(
-        "Voice SOS unavailable",
-        "Voice SOS needs a SafeHer development/Android build with the speech-recognition module. Expo Go cannot load this native feature.",
-      );
+      setSosFeedback("Voice SOS requires the SafeHer development/Android build with speech recognition; it is not available in Expo Go.");
       return;
     }
 
@@ -433,18 +292,12 @@ export default function DashboardScreen({ navigation }) {
       const permission = await speechModule.requestPermissionsAsync();
 
       if (!permission?.granted) {
-        Alert.alert(
-          "Microphone Permission",
-          "Microphone permission is required for Voice SOS.",
-        );
+        setSosFeedback("Microphone permission is required for Voice SOS.");
         return;
       }
 
       if (!speechModule.isRecognitionAvailable()) {
-        Alert.alert(
-          "Speech Recognition Unavailable",
-          "Please enable a speech recognition service on this Android phone.",
-        );
+        setSosFeedback("Speech recognition is unavailable on this phone. Enable an Android speech service and retry.");
         return;
       }
 
@@ -454,8 +307,8 @@ export default function DashboardScreen({ navigation }) {
     } catch (error) {
       voiceEnabledRef.current = false;
       setVoiceListening(false);
-      console.log("❌ Voice SOS initialization error:", error?.message);
-      Alert.alert("Voice SOS", error?.message || "Unable to start Voice SOS.");
+      console.log("Voice SOS initialization error:", error?.message);
+      setSosFeedback(error?.message || "Unable to start Voice SOS.");
     }
   };
 
@@ -551,12 +404,116 @@ export default function DashboardScreen({ navigation }) {
     }
   }, []);
 
+  // Keep the button state in sync whether SOS came from the button, voice,
+  // foreground shake, or the Android background service.
+  useEffect(() => {
+    let mounted = true;
+
+    const syncActiveEmergency = async () => {
+      if (sosRunningRef.current) return;
+      try {
+        const cachedRaw = await AsyncStorage.getItem(ACTIVE_SOS_STORAGE_KEY);
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          const ageMs = Date.now() - Number(cached?.timestamp || 0);
+          if (cached?.status === "PENDING" && ageMs >= 0 && ageMs < 45000) {
+            sosActiveRef.current = true;
+            setSosActive(true);
+            setLoading(true);
+            setSosFeedback("SOS trigger detected. Sending emergency alert…");
+            return;
+          }
+        }
+        const response = await emergencyAPI.getAll();
+        if (!mounted || sosRunningRef.current) return;
+        const rows = Array.isArray(response?.data?.data) ? response.data.data : [];
+        const active = rows.find((item) => String(item?.status || "").toUpperCase() === "ACTIVE");
+
+        if (active) {
+          sosActiveRef.current = true;
+          setSosActive(true);
+          setSosFeedback("An emergency is active. Your SOS button is locked to prevent duplicate alerts.");
+          await AsyncStorage.setItem(ACTIVE_SOS_STORAGE_KEY, JSON.stringify({
+            status: "ACTIVE",
+            triggerType: active.triggerType || "SOS_BUTTON",
+            timestamp: active.startedAt ? new Date(active.startedAt).getTime() : Date.now(),
+            emergencyId: active.id,
+          }));
+        } else {
+          sosActiveRef.current = false;
+          setSosActive(false);
+          setSosFeedback((previous) => previous.startsWith("SOS is active") || previous.startsWith("SOS active") || previous.startsWith("An emergency is active") ? "" : previous);
+          await AsyncStorage.removeItem(ACTIVE_SOS_STORAGE_KEY);
+          await stopSOSAlarm();
+        }
+      } catch (error) {
+        // Keep current UI state when the API is temporarily unreachable.
+        console.log("Could not refresh active SOS state:", error?.message);
+      }
+    };
+
+    const triggeredSubscription = DeviceEventEmitter.addListener("safeher:sos-triggered", async (event = {}) => {
+      if (!mounted) return;
+      sosActiveRef.current = true;
+      setSosActive(true);
+      // Show a pressed/grey button immediately, but keep the spinner until the API confirms.
+      const eventStatus = String(event.status || "ACTIVE").toUpperCase();
+      const pending = eventStatus === "PENDING";
+      setLoading(pending);
+      const triggerLabel = event.triggerType ? ` (${event.triggerType.toLowerCase()} trigger)` : "";
+      setSosFeedback(pending
+        ? `SOS trigger detected${triggerLabel}. Sending emergency alert…`
+        : `SOS active${triggerLabel}.`);
+      // Keep PENDING until the background API request confirms an active emergency.
+      // This avoids a race where the initial status refresh sees no backend row yet.
+      const record = {
+        ...event,
+        status: eventStatus,
+        timestamp: event.timestamp || Date.now(),
+      };
+      await AsyncStorage.setItem(ACTIVE_SOS_STORAGE_KEY, JSON.stringify(record)).catch(() => {});
+      void startSOSAlarm();
+    });
+
+    const failedSubscription = DeviceEventEmitter.addListener("safeher:sos-failed", (event = {}) => {
+      if (!mounted) return;
+      sosActiveRef.current = false;
+      setSosActive(false);
+      setLoading(false);
+      setSosFeedback(event.message || "Background SOS could not be sent.");
+      void stopSOSAlarm();
+    });
+
+    const resolvedSubscription = DeviceEventEmitter.addListener("safeher:sos-resolved", () => {
+      if (!mounted) return;
+      sosActiveRef.current = false;
+      setSosActive(false);
+      setLoading(false);
+      setSosFeedback("Emergency marked as resolved.");
+      void AsyncStorage.removeItem(ACTIVE_SOS_STORAGE_KEY);
+      void stopSOSAlarm();
+    });
+
+    const appStateSubscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void syncActiveEmergency();
+    });
+    const focusUnsubscribe = navigation?.addListener?.("focus", syncActiveEmergency);
+
+    void syncActiveEmergency();
+
+    return () => {
+      mounted = false;
+      triggeredSubscription.remove();
+      failedSubscription.remove();
+      resolvedSubscription.remove();
+      appStateSubscription.remove();
+      focusUnsubscribe?.();
+    };
+  }, [navigation]);
+
   const enableBackgroundSOS = async () => {
     if (Platform.OS !== "android") {
-      Alert.alert(
-        "Android only",
-        "Background Voice + Shake SOS is currently implemented for Android.",
-      );
+      setSosFeedback("Background Voice + Shake SOS is currently supported on Android only.");
       return;
     }
 
@@ -564,40 +521,28 @@ export default function DashboardScreen({ navigation }) {
       const foreground = await Location.requestForegroundPermissionsAsync();
 
       if (foreground.status !== "granted") {
-        Alert.alert(
-          "Location Permission",
-          "Location permission is required for background SOS alerts.",
-        );
+        setSosFeedback("Location permission is required for background SOS alerts.");
         return;
       }
 
       const background = await Location.requestBackgroundPermissionsAsync();
 
       if (background.status !== "granted") {
-        Alert.alert(
-          "Background Location",
-          "Please allow SafeHer to use location in the background so a triggered SOS can include your current location.",
-        );
+        setSosFeedback("Allow background location in Android settings so background SOS can include your position.");
         return;
       }
 
       const speechModule = getSpeechRecognitionModule();
 
       if (!speechModule) {
-        Alert.alert(
-          "Background SOS unavailable",
-          "Background SOS needs a SafeHer development/Android build with native speech recognition.",
-        );
+        setSosFeedback("Background SOS needs the SafeHer development/Android build with native speech recognition.");
         return;
       }
 
       const microphone = await speechModule.requestPermissionsAsync();
 
       if (!microphone?.granted) {
-        Alert.alert(
-          "Microphone Permission",
-          "Microphone permission is required for background Voice SOS.",
-        );
+        setSosFeedback("Microphone permission is required for background Voice SOS.");
         return;
       }
 
@@ -623,18 +568,12 @@ export default function DashboardScreen({ navigation }) {
       backgroundSosEnabledRef.current = true;
       setBackgroundSosEnabled(true);
 
-      Alert.alert(
-        "🛡️ Background SOS Enabled",
-        `SafeHer will listen for a strong shake or "${voiceKeywordRef.current}" while the app is in the background. A persistent Android notification will stay visible.`,
-      );
+      setSosFeedback(`Background SOS enabled: shake or “${voiceKeywordRef.current}”. Keep the SafeHer notification visible.`);
     } catch (error) {
       backgroundSosEnabledRef.current = false;
       setBackgroundSosEnabled(false);
       console.error("❌ Background SOS setup failed:", error?.message);
-      Alert.alert(
-        "Background SOS",
-        error?.message || "Unable to start background SOS.",
-      );
+      setSosFeedback(error?.message || "Unable to start background SOS.");
     }
   };
 
@@ -648,6 +587,7 @@ export default function DashboardScreen({ navigation }) {
 
     backgroundSosEnabledRef.current = false;
     setBackgroundSosEnabled(false);
+    setSosFeedback("Background SOS disabled.");
   };
 
   // =========================================================
@@ -657,91 +597,47 @@ export default function DashboardScreen({ navigation }) {
   const quickActions = [
     {
       id: 1,
-
       title: "Manage Contacts",
-
       icon: "👥",
-
       color: COLORS.primary,
-
       onPress: () => navigation.navigate("Contacts"),
     },
-
     {
       id: 2,
-
       title: "View History",
-
       icon: "📋",
-
       color: COLORS.secondary,
-
       onPress: () => navigation.navigate("History"),
-    },
-
-    {
-      id: 3,
-
-      title: "Safe Places",
-
-      icon: "📍",
-
-      color: "#10B981",
-
-      onPress: () =>
-        Alert.alert(
-          "Coming Soon",
-
-          "Safe places feature coming soon!",
-        ),
-    },
-
-    {
-      id: 4,
-
-      title: "Settings",
-
-      icon: "⚙️",
-
-      color: "#F59E0B",
-
-      onPress: () =>
-        Alert.alert(
-          "Coming Soon",
-
-          "Settings coming soon!",
-        ),
     },
   ];
 
-  // =========================================================
-  // SHAKE / GESTURE SOS
-  // =========================================================
-
-  const lastShakeRef = useRef(0);
-
+  // SHAKE / GESTURE SOS. When the background service is enabled, it owns
+  // sensor listening so there are no duplicate foreground/background triggers.
   useEffect(() => {
-    // When the Android background service is enabled, it owns the shake
-    // listener so that there is only one shake trigger active.
-    if (backgroundSosEnabled) {
-      return undefined;
-    }
+    if (backgroundSosEnabled) return undefined;
 
-    Accelerometer.setUpdateInterval(150);
-
-    const subscription = Accelerometer.addListener(({ x, y, z }) => {
-      const acceleration = Math.sqrt(x * x + y * y + z * z);
-      const now = Date.now();
-
-      if (acceleration > 2.4 && now - lastShakeRef.current > 5000) {
-        lastShakeRef.current = now;
-        console.log("🚨 Foreground shake SOS triggered");
-        triggerSOS("SHAKE");
-      }
-    });
+    let subscription;
+    let mounted = true;
+    Accelerometer.isAvailableAsync()
+      .then((available) => {
+        if (!mounted || !available) return;
+        Accelerometer.setUpdateInterval(100);
+        subscription = Accelerometer.addListener(
+          createShakeDetector({
+            onShake: () => {
+              if (!sosActiveRef.current && !sosRunningRef.current) {
+                console.log("Shake gesture detected in foreground");
+                void triggerSOS("SHAKE");
+              }
+            },
+          }),
+        );
+      })
+      .catch((error) => console.log("Accelerometer unavailable:", error?.message));
 
     return () => {
-      subscription.remove();
+      mounted = false;
+      subscription?.remove?.();
     };
   }, [backgroundSosEnabled]);
 
@@ -780,24 +676,36 @@ export default function DashboardScreen({ navigation }) {
         <Text style={styles.sosLabel}>Emergency Button</Text>
 
         <TouchableOpacity
-          style={[styles.sosButton, loading && styles.sosButtonDisabled]}
+          style={[
+            styles.sosButton,
+            (loading || sosActive) && styles.sosButtonDisabled,
+            sosActive && styles.sosButtonActive,
+          ]}
           onPress={handleSOSPress}
-          disabled={loading}
-          activeOpacity={0.8}
+          disabled={loading || sosActive}
+          activeOpacity={0.72}
         >
           {loading ? (
-            <ActivityIndicator size="large" color="#fff" />
+            <>
+              <ActivityIndicator size="large" color="#fff" />
+              <Text style={styles.sosSubtext}>Sending SOS…</Text>
+            </>
           ) : (
             <>
-              <Text style={styles.sosText}>SOS</Text>
-
-              <Text style={styles.sosSubtext}>Tap to Alert</Text>
+              <Text style={styles.sosText}>{"SOS"}</Text>
+              <Text style={styles.sosSubtext}>{sosActive ? "SOS ACTIVE" : "Tap to Alert"}</Text>
             </>
           )}
         </TouchableOpacity>
 
+        {sosFeedback ? (
+          <Text style={[styles.sosFeedback, sosActive && styles.sosFeedbackActive]} accessibilityLiveRegion="polite">
+            {sosFeedback}
+          </Text>
+        ) : null}
+
         <Text style={styles.sosInstruction}>
-          Tap to send emergency alert to all contacts
+          {sosActive ? "Emergency is active. Open History to resolve it when safe." : "Tap to send an emergency alert to all contacts"}
         </Text>
       </View>
 
@@ -1038,7 +946,30 @@ const styles = StyleSheet.create({
   },
 
   sosButtonDisabled: {
-    opacity: 0.7,
+    opacity: 1,
+    backgroundColor: "#9CA3AF",
+    shadowColor: "#6B7280",
+    elevation: 4,
+  },
+
+  sosButtonActive: {
+    backgroundColor: "#9CA3AF",
+    borderColor: "#F3F4F6",
+    shadowColor: "#6B7280",
+  },
+
+  sosFeedback: {
+    marginTop: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+
+  sosFeedbackActive: {
+    color: "#374151",
+    fontWeight: "700",
   },
 
   sosText: {

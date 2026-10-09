@@ -1,4 +1,5 @@
-import { Platform } from "react-native";
+import { Platform, DeviceEventEmitter } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import BackgroundService from "react-native-background-actions";
 import { Accelerometer } from "expo-sensors";
 import * as Location from "expo-location";
@@ -6,15 +7,17 @@ import {
   ExpoSpeechRecognitionModule,
 } from "expo-speech-recognition";
 import { emergencyAPI } from "./api";
+import { createShakeDetector } from "./shakeDetection";
+import { ACTIVE_SOS_STORAGE_KEY, startSOSAlarm, stopSOSAlarm } from "./sosAudioService";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 let cleanupBackgroundListeners = null;
 let lastBackgroundTriggerAt = 0;
+let backgroundAlarmStarted = false;
 
 const TRIGGER_COOLDOWN_MS = 10000;
-const SHAKE_THRESHOLD = 2.4;
-const SHAKE_UPDATE_INTERVAL = 150;
+const SHAKE_UPDATE_INTERVAL = 100;
 
 const normalizeText = (value) =>
   String(value || "")
@@ -44,16 +47,34 @@ const getCurrentLocation = async () => {
 const sendBackgroundSOS = async (triggerType) => {
   const now = Date.now();
 
+  try {
+    const saved = await AsyncStorage.getItem(ACTIVE_SOS_STORAGE_KEY);
+    if (saved) {
+      const currentEvent = JSON.parse(saved);
+      if (["PENDING", "ACTIVE"].includes(String(currentEvent?.status || "").toUpperCase())) {
+        console.log("⚠️ An SOS is already pending/active; duplicate background trigger ignored.");
+        return currentEvent;
+      }
+    }
+  } catch (storageError) {
+    console.log("Could not read SOS status:", storageError?.message);
+  }
+
   if (now - lastBackgroundTriggerAt < TRIGGER_COOLDOWN_MS) {
     console.log("⚠️ Background SOS cooldown active");
     return null;
   }
 
   lastBackgroundTriggerAt = now;
+  const pendingEvent = { status: "PENDING", triggerType, timestamp: now };
 
   try {
-    const location = await getCurrentLocation();
+    await AsyncStorage.setItem(ACTIVE_SOS_STORAGE_KEY, JSON.stringify(pendingEvent));
+    backgroundAlarmStarted = true;
+    void startSOSAlarm();
+    DeviceEventEmitter.emit("safeher:sos-triggered", pendingEvent);
 
+    const location = await getCurrentLocation();
     const response = await emergencyAPI.trigger({
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
@@ -61,21 +82,40 @@ const sendBackgroundSOS = async (triggerType) => {
       triggerType,
     });
 
+    const responseEmergency = response?.data?.emergency;
+    const createdEmergency = responseEmergency?.emergency || responseEmergency;
+    const activeEvent = {
+      ...pendingEvent,
+      status: "ACTIVE",
+      emergencyId: createdEmergency?.id || response?.data?.id || null,
+    };
+    await AsyncStorage.setItem(ACTIVE_SOS_STORAGE_KEY, JSON.stringify(activeEvent));
+    DeviceEventEmitter.emit("safeher:sos-triggered", activeEvent);
     console.log(`🚨 Background ${triggerType} SOS sent`, response?.data);
     return response?.data;
   } catch (error) {
     const data = error?.response?.data;
 
     if (error?.response?.status === 409) {
-      console.log("⚠️ SOS already active; background trigger ignored.");
+      const activeEvent = {
+        ...pendingEvent,
+        status: "ACTIVE",
+        emergencyId: data?.emergency?.id || null,
+      };
+      await AsyncStorage.setItem(ACTIVE_SOS_STORAGE_KEY, JSON.stringify(activeEvent)).catch(() => {});
+      DeviceEventEmitter.emit("safeher:sos-triggered", activeEvent);
+      console.log("⚠️ SOS already active; background trigger will not create a second emergency.");
       return data;
     }
 
-    console.error(
-      `❌ Background ${triggerType} SOS failed:`,
-      data || error?.message,
-    );
-
+    await AsyncStorage.removeItem(ACTIVE_SOS_STORAGE_KEY).catch(() => {});
+    backgroundAlarmStarted = false;
+    await stopSOSAlarm();
+    DeviceEventEmitter.emit("safeher:sos-failed", {
+      triggerType,
+      message: data?.message || error?.message || "Background SOS failed.",
+    });
+    console.error(`❌ Background ${triggerType} SOS failed:`, data || error?.message);
     throw error;
   }
 };
@@ -122,22 +162,15 @@ const createBackgroundTask = ({ voiceKeyword }) => async () => {
   try {
     Accelerometer.setUpdateInterval(SHAKE_UPDATE_INTERVAL);
 
-    let lastShakeAt = 0;
-
-    shakeSubscription = Accelerometer.addListener(({ x, y, z }) => {
-      const acceleration = Math.sqrt(x * x + y * y + z * z);
-      const now = Date.now();
-
-      if (
-        acceleration > SHAKE_THRESHOLD &&
-        now - lastShakeAt > TRIGGER_COOLDOWN_MS
-      ) {
-        lastShakeAt = now;
-        console.log("🚨 Background shake detected");
-
-        sendBackgroundSOS("SHAKE").catch(() => {});
-      }
-    });
+    shakeSubscription = Accelerometer.addListener(
+      createShakeDetector({
+        cooldownMs: TRIGGER_COOLDOWN_MS,
+        onShake: () => {
+          console.log("🚨 Background shake detected");
+          sendBackgroundSOS("SHAKE").catch(() => {});
+        },
+      }),
+    );
 
     voiceResultSubscription = ExpoSpeechRecognitionModule.addListener(
       "result",
@@ -185,6 +218,13 @@ const createBackgroundTask = ({ voiceKeyword }) => async () => {
     startSpeech();
 
     while (BackgroundService.isRunning() && !stopped) {
+      try {
+        const savedEvent = await AsyncStorage.getItem(ACTIVE_SOS_STORAGE_KEY);
+        if (!savedEvent && backgroundAlarmStarted) {
+          backgroundAlarmStarted = false;
+          await stopSOSAlarm();
+        }
+      } catch (_) {}
       await sleep(1000);
     }
   } finally {
@@ -233,7 +273,7 @@ export const startBackgroundSOS = async (voiceKeyword) => {
     },
     color: "#DC2626",
     parameters: {},
-    foregroundServiceType: ["microphone", "specialUse"],
+    foregroundServiceType: ["microphone", "location", "specialUse"],
   });
 
   cleanupBackgroundListeners = () => {

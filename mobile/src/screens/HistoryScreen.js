@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { DeviceEventEmitter } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ACTIVE_SOS_STORAGE_KEY, stopSOSAlarm } from '../services/sosAudioService';
 import {
   View,
   Text,
@@ -69,7 +72,9 @@ export default function HistoryScreen() {
           onPress: async () => {
             try {
               await emergencyAPI.resolve(item.id);
-              Alert.alert('Success', 'Emergency marked as resolved');
+              await AsyncStorage.removeItem(ACTIVE_SOS_STORAGE_KEY).catch(() => {});
+              DeviceEventEmitter.emit('safeher:sos-resolved');
+              await stopSOSAlarm();
               fetchHistory();
             } catch (error) {
               Alert.alert('Error', 'Failed to update status');

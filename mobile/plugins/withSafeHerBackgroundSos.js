@@ -12,6 +12,11 @@ module.exports = function withSafeHerBackgroundSos(config) {
       return config;
     }
 
+    // Local HTTP API is used during LAN testing; this belongs in the generated
+    // manifest (not app.json, where it fails Expo's schema validation).
+    application.$ = application.$ || {};
+    application.$["android:usesCleartextTraffic"] = "true";
+
     application.service = application.service || [];
 
     let service = application.service.find(
@@ -22,7 +27,7 @@ module.exports = function withSafeHerBackgroundSos(config) {
       "android:name": SERVICE_NAME,
       "android:exported": "false",
       "android:stopWithTask": "false",
-      "android:foregroundServiceType": "microphone|specialUse",
+      "android:foregroundServiceType": "microphone|location|specialUse",
     };
 
     if (!service) {

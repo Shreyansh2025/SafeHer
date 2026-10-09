@@ -1,46 +1,72 @@
+const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Emergency = require("../models/Emergency");
 
-// Admin Login
+const {
+  normalizeEmail,
+} = require("../utils/authValidation");
+
+// =====================================================
+// VERIFY ADMIN CREDENTIALS
+// =====================================================
+
 const verifyAdmin = async (email, password) => {
-
-  const adminEmail = (process.env.ADMIN_EMAIL || "")
-    .trim()
-    .toLowerCase();
-
+  const adminEmail = process.env.ADMIN_EMAIL || "";
   const adminPassword = process.env.ADMIN_PASSWORD;
 
-  // Admin credentials must exist
-  if (!adminEmail || !adminPassword) {
-    throw new Error(
+  if (
+    !adminEmail.trim() ||
+    typeof adminPassword !== "string" ||
+    !adminPassword
+  ) {
+    const error = new Error(
       "Admin credentials are not configured"
     );
+    error.statusCode = 500;
+    throw error;
   }
 
-  const normalizedEmail = email
-    .trim()
-    .toLowerCase();
+  if (
+    typeof email !== "string" ||
+    typeof password !== "string" ||
+    !email.trim() ||
+    !password
+  ) {
+    const error = new Error(
+      "Email and password are required"
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  const configuredEmail = normalizeEmail(adminEmail);
 
   if (
-    normalizedEmail !== adminEmail ||
+    normalizedEmail !== configuredEmail ||
     password !== adminPassword
   ) {
-    throw new Error(
+    const error = new Error(
       "Invalid admin email or password"
     );
+    error.statusCode = 401;
+    throw error;
   }
 
   return {
     id: 1,
     name: "SafeHer Admin",
-    email: adminEmail,
+    email: configuredEmail,
     role: "ADMIN",
   };
 };
 
-// Get all ACTIVE emergencies
+// =====================================================
+// GET ALL ACTIVE EMERGENCIES
+// =====================================================
+
 const findAllActive = async () => {
-  const emergencies = await Emergency.findAll({
+  return await Emergency.findAll({
     where: {
       status: "ACTIVE",
     },
@@ -52,26 +78,50 @@ const findAllActive = async () => {
     ],
     order: [["createdAt", "DESC"]],
   });
-
-  return emergencies;
 };
 
+// =====================================================
+// GET EMERGENCY HISTORY
+// =====================================================
 
-// Get all emergency history
 const findAll = async (filters = {}) => {
   const where = {};
 
-  // Filter by status
   if (filters.status) {
-    where.status = filters.status;
+    const allowedStatuses = [
+      "ACTIVE",
+      "RESOLVED",
+      "CANCELLED",
+    ];
+
+    const status = String(filters.status).toUpperCase();
+
+    if (!allowedStatuses.includes(status)) {
+      const error = new Error(
+        "Invalid emergency status filter"
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    where.status = status;
   }
 
-  // Filter by user
-  if (filters.userId) {
-    where.userId = filters.userId;
+  if (filters.userId !== undefined &&
+      filters.userId !== null &&
+      filters.userId !== "") {
+    const userId = Number(filters.userId);
+
+    if (!Number.isSafeInteger(userId) || userId < 1) {
+      const error = new Error("Invalid user ID filter");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    where.userId = userId;
   }
 
-  const emergencies = await Emergency.findAll({
+  return await Emergency.findAll({
     where,
     include: [
       {
@@ -81,13 +131,14 @@ const findAll = async (filters = {}) => {
     ],
     order: [["createdAt", "DESC"]],
   });
-
-  return emergencies;
 };
 
-// Get all users
+// =====================================================
+// GET ALL USERS
+// =====================================================
+
 const findAllUsers = async () => {
-  const users = await User.findAll({
+  return await User.findAll({
     attributes: [
       "id",
       "name",
@@ -97,8 +148,11 @@ const findAllUsers = async () => {
     ],
     order: [["createdAt", "DESC"]],
   });
-
-  return users;
 };
 
-module.exports={verifyAdmin,findAllActive,findAll,findAllUsers}
+module.exports = {
+  verifyAdmin,
+  findAllActive,
+  findAll,
+  findAllUsers,
+};

@@ -1,96 +1,100 @@
 const {
-    registerService,
-    loginService
+  registerService,
+  loginService,
+  googleLoginService,
 } = require("../services/authservice");
 
-
+// =====================================================
 // REGISTER
+// =====================================================
+
 const register = async (req, res) => {
-    try {
+  try {
+    const {
+      name,
+      email,
+      phone,
+      password,
+    } = req.body || {};
 
-        const {
-            name,
-            email,
-            phone,
-            password
-        } = req.body;
+    const result = await registerService(
+      name,
+      email,
+      phone,
+      password
+    );
 
-        // Validation
-        if (!name || !email || !password || !phone) {
-            return res.status(400).json({
-                success: false,
-                message: "Name, email, phone and password are required"
-            });
-        }
+    return res.status(201).json({
+      success: true,
+      message: "Registration successful",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
 
-        const result = await registerService(
-            name,
-            email,
-            phone,
-            password
-        );
+    const statusCode = error.statusCode || 500;
 
-        return res.status(201).json({
-            success: true,
-            message: "Registration successful",
-            data: result
-        });
-
-    } catch (error) {
-
-        console.log("Registration error:", error);
-
-        if (error.message) {
-            return res.status(409).json({
-                success: false,
-                message: error.message
-            });
-        }
-
-        return res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
-    }
+    return res.status(statusCode).json({
+      success: false,
+      message:
+        statusCode >= 500
+          ? "Registration failed due to a server error"
+          : error.message,
+    });
+  }
 };
 
-
+// =====================================================
 // LOGIN
+// =====================================================
+
 const login = async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+    } = req.body || {};
 
-    try {
+    const result = await loginService(
+      email,
+      password
+    );
 
-        const {
-            email,
-            password
-        } = req.body;
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Login error:", error);
 
-        if (!email || !password) {
-            return res.status(400).json({
-                message: "Email and password are required"
-            });
-        }
+    const statusCode = error.statusCode || 500;
 
-        const result = await loginService(
-            email,
-            password
-        );
-
-        return res.status(200).json({
-            message: "Login successful",
-            data: result
-        });
-
-    } catch (error) {
-
-        return res.status(401).json({
-            message: error.message
-        });
-    }
+    return res.status(statusCode).json({
+      success: false,
+      message:
+        statusCode >= 500
+          ? "Login failed due to a server error"
+          : error.message,
+    });
+  }
 };
 
+const googleLogin = async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ message: "idToken is required" });
+    }
+    const data = await googleLoginService(idToken);
+    return res.status(200).json({ message: "Login successful", data });
+  } catch (error) {
+    return res.status(401).json({ message: error.message });
+  }
+};
 
 module.exports = {
-    register,
-    login
+  register,
+  login,
+  googleLogin,
 };
