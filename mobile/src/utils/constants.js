@@ -1,5 +1,6 @@
 // API Configuration
-export const API_URL = "http://10.195.233.125:3000/api";
+export const API_URL =
+  "https://safeher-ji7r.onrender.com/api";
 
 // Colors - Deep Purple & Pink Theme
 export const COLORS = {
