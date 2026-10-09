@@ -57,77 +57,72 @@ export default function LoginScreen({ navigation }) {
   // =====================================================
 
   const handleLogin = async () => {
-    if (loading) return;
+  if (loading) return;
 
-    const validationErrors = validateLogin({
-      email,
+  const validationErrors = validateLogin({
+    email,
+    password,
+  });
+
+  setErrors(validationErrors);
+
+  if (Object.keys(validationErrors).length > 0) {
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const response = await authAPI.login({
+      email: normalizeEmail(email),
       password,
     });
 
-    setErrors(validationErrors);
+    const result = response?.data?.data;
 
-    if (Object.keys(validationErrors).length > 0) {
+    // Password verified; OTP is now required
+    if (!result?.otpRequired || !result?.challengeId) {
+      setErrors({
+        form: "Unable to start OTP verification. Please try again.",
+      });
       return;
     }
 
-    try {
-      setLoading(true);
+    // Open the OTP screen and pass the challenge details
+    navigation.navigate("VerifyLoginOtp", {
+      challengeId: result.challengeId,
+      emailHint: result.emailHint,
+    });
 
-      const response = await authAPI.login({
-        email: normalizeEmail(email),
-        password,
+  } catch (error) {
+    const status = error.response?.status;
+    const serverMessage = error.response?.data?.message;
+
+    if (status === 401) {
+      setErrors({
+        form: "Invalid email or password.",
       });
-
-      const result = response?.data?.data;
-
-      if (!result?.user || !result?.token) {
-        throw new Error(
-          "Invalid response received from server"
-        );
-      }
-
-      await login(result.user, result.token, "user");
-
-      Alert.alert(
-        "Success",
-        "Welcome back to SafeHer!"
-      );
-    } catch (error) {
-      const status = error.response?.status;
-      const serverMessage = error.response?.data?.message;
-
-      if (status === 401) {
-        setErrors({
-          form: "Invalid email or password.",
-        });
-      } else if (status === 403) {
-        setErrors({
-          form:
-            serverMessage ||
-            "Please use the appropriate login page.",
-        });
-      } else if (status === 400) {
-        setErrors({
-          form:
-            serverMessage ||
-            "Please check your email and password.",
-        });
-      } else if (!error.response) {
-        setErrors({
-          form:
-            "Cannot connect to the server. Check your internet connection and try again.",
-        });
-      } else {
-        setErrors({
-          form:
-            serverMessage ||
-            "Login failed. Please try again later.",
-        });
-      }
-    } finally {
-      setLoading(false);
+    } else if (status === 403 || status === 400) {
+      setErrors({
+        form: serverMessage || "Please check your login details.",
+      });
+    } else if (status === 429) {
+      setErrors({
+        form: serverMessage || "Please wait before trying again.",
+      });
+    } else if (!error.response) {
+      setErrors({
+        form: "Cannot connect to the server. Check your connection.",
+      });
+    } else {
+      setErrors({
+        form: serverMessage || "Login failed. Please try again.",
+      });
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleGoogleLogin = async () => {
   try {
