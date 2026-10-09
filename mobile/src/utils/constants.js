@@ -1,5 +1,5 @@
 // API Configuration
-export const API_URL = process.env.API_URL
+export const API_URL = "http://10.195.233.125:3000/api";
 
 // Colors - Deep Purple & Pink Theme
 export const COLORS = {

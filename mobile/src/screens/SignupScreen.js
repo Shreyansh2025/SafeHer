@@ -32,7 +32,7 @@ import {
 } from '../utils/validation';
 
 GoogleSignin.configure({
-  webClientId: process.env.GOOGLE_WEB_CLIENT_ID,
+  webClientId: '355962870886-kn9ln5f9vkc88mp9j6pgcsvncovm34fv.apps.googleusercontent.com',
 });
 
 export default function SignupScreen({ navigation }) {
