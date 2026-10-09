@@ -3,25 +3,44 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  createEmergencyContact,
-  getAllEmergencyContacts,
-  getEmergencyContactById,
-  updateEmergencyContact,
-  deleteEmergencyContact,
+    createEmergencyContact,
+    getAllEmergencyContacts,
+    getEmergencyContactById,
+    updateEmergencyContact,
+    deleteEmergencyContact
 } = require("../controllers/emergencyContactController");
 
-const authMiddleware = require("../middleware/authMiddleware");
+const authMiddleware =
+    require("../middleware/authMiddleware");
+
 
 router.use(authMiddleware);
 
-router.post("/", createEmergencyContact);
 
-router.get("/", getAllEmergencyContacts);
+router.post(
+    "/",
+    createEmergencyContact
+);
 
-router.get("/:id", getEmergencyContactById);
+router.get(
+    "/",
+    getAllEmergencyContacts
+);
 
-router.put("/:id", updateEmergencyContact);
+router.get(
+    "/:id",
+    getEmergencyContactById
+);
 
-router.delete("/:id", deleteEmergencyContact);
+router.put(
+    "/:id",
+    updateEmergencyContact
+);
+
+router.delete(
+    "/:id",
+    deleteEmergencyContact
+);
+
 
 module.exports = router;

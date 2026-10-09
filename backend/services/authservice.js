@@ -1,7 +1,6 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const { createLoginOtp } = require("./loginOtpService");
 const { Op } = require("sequelize");
 const { OAuth2Client } = require("google-auth-library");
 const googleClient = new OAuth2Client(process.env.GOOGLE_WEB_CLIENT_ID);
@@ -212,30 +211,27 @@ const loginService = async (email, password) => {
       500
     );
   }
-  
-  // Send OTP instead of issuing JWT immediately
-return await createLoginOtp(user);
 
-  // const token = jwt.sign(
-  //   {
-  //     id: user.id,
-  //     email: user.email,
-  //     role: user.role,
-  //   },
-  //   process.env.JWT_SECRET,
-  //   { expiresIn: "1h" }
-  // );
+  const token = jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" }
+  );
 
-  // return {
-  //   user: {
-  //     id: user.id,
-  //     name: user.name,
-  //     phone: user.phone,
-  //     email: user.email,
-  //     role: user.role,
-  //   },
-  //   token,
-  // };
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      phone: user.phone,
+      email: user.email,
+      role: user.role,
+    },
+    token,
+  };
 };
 
 const googleLoginService = async (idToken) => {
