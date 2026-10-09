@@ -7,6 +7,7 @@ const Notification = require('./Notification');
 const Admin = require('./Admin');
 const GuardianLink = require('./GuardianLink');
 const EmergencyEvent = require('./EmergencyEvent');
+const LoginOtp = require('./LoginOtp');
 
 User.hasMany(EmergencyContact, {
     foreignKey: 'userId',
@@ -72,6 +73,16 @@ EmergencyEvent.belongsTo(Emergency, {
     foreignKey: 'emergencyId'
 });
 
+// Login OTP
+User.hasOne(LoginOtp, {
+    foreignKey: 'userId',
+    onDelete: 'CASCADE'
+});
+
+LoginOtp.belongsTo(User, {
+    foreignKey: 'userId'
+});
+
 module.exports = {
     sequelize,
     User,
@@ -80,5 +91,6 @@ module.exports = {
     Notification,
     Admin,
     GuardianLink,
-    EmergencyEvent
+    EmergencyEvent,
+    LoginOtp
 };
