@@ -1,7 +1,7 @@
 const { Op } = require("sequelize");
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
-const { generateUserQR } = require("./qrservice");
+const { generateUserQR } = require("./qrService");
 
 // GET PROFILE
 const getProfile = async (userId) => {
