@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { adminAPI } from '../services/api';
-import { SPACING } from '../utils/constants';
+import { SPACING, FONTS } from '../utils/constants';
 import { adminStyles as styles } from './adminStyles';
 import { formatDateTime } from '../utils/admin';
 
@@ -71,7 +71,7 @@ export default function AdminHistoryScreen() {
                   borderColor: selected ? '#C4B5FD' : '#E5E7EB',
                 }}
               >
-                <Text style={{ color: selected ? '#6D28D9' : '#6B7280', fontWeight: '800', fontSize: 12 }}>
+                <Text style={{ color: selected ? '#6D28D9' : '#6B7280', fontFamily: FONTS.bodyBold, fontSize: 12 }}>
                   {item}
                 </Text>
               </TouchableOpacity>

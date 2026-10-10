@@ -12,6 +12,9 @@ import {
   PermissionsAndroid,
   DeviceEventEmitter,
   AppState,
+  Image,
+  Animated,
+  Easing,
 } from "react-native";
 
 // import {
@@ -22,7 +25,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import * as Location from "expo-location";
 
-import { COLORS, SPACING, RADIUS, SHADOW } from "../utils/constants";
+import { COLORS, SPACING, RADIUS, SHADOW, FONTS, IMAGES } from "../utils/constants";
 
 import { useAuth } from "../context/AuthContext";
 
@@ -33,6 +36,50 @@ import { connectSocket, joinEmergency, sendLocation } from "../services/socket";
 import { Accelerometer } from "expo-sensors";
 import { createShakeDetector } from "../services/shakeDetection";
 import { ACTIVE_SOS_STORAGE_KEY, startSOSAlarm, stopSOSAlarm } from "../services/sosAudioService";
+
+// Visual-only helpers (no SOS logic here)
+const ACTION_ICONS = {
+  1: IMAGES.iconPhone,
+  2: IMAGES.iconLocation,
+};
+
+function PulseRing({ active }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!active) {
+      pulse.setValue(0);
+      return undefined;
+    }
+    const loop = Animated.loop(
+      Animated.timing(pulse, {
+        toValue: 1,
+        duration: 1800,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [active, pulse]);
+
+  if (!active) return null;
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.pulseRing,
+        {
+          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] }),
+          transform: [
+            { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] }) },
+          ],
+        },
+      ]}
+    />
+  );
+}
 
 export default function DashboardScreen({ navigation }) {
   const { user } = useAuth();
@@ -659,10 +706,25 @@ export default function DashboardScreen({ navigation }) {
   // =========================================================
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.screen}>
+    <Image source={IMAGES.homeBackground} style={styles.wallpaper} resizeMode="cover" />
+    <View style={styles.wallpaperWash} pointerEvents="none" />
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Welcome Header */}
 
       <View style={styles.header}>
+        <View style={styles.topRow}>
+          <Image source={IMAGES.logo} style={styles.headerLogo} resizeMode="contain" />
+          <View style={styles.statusPill}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusPillText}>Here for you</Text>
+          </View>
+        </View>
+
         <Text style={styles.greeting}>{getGreeting()},</Text>
 
         <Text style={styles.userName}>{user?.name || "User"}</Text>
@@ -670,11 +732,20 @@ export default function DashboardScreen({ navigation }) {
         <Text style={styles.subtitle}>Stay safe, we're here for you</Text>
       </View>
 
+      {/* Hero banner */}
+      <View style={styles.hero}>
+        <Image source={IMAGES.homeBanner} style={styles.heroImage} resizeMode="cover" />
+        <View style={styles.heroShade} />
+        <Text style={styles.heroText}>Your safety matters.</Text>
+      </View>
+
       {/* SOS Button Container */}
 
       <View style={styles.sosContainer}>
         <Text style={styles.sosLabel}>Emergency Button</Text>
 
+        <View style={styles.sosWrap}>
+        <PulseRing active={!loading && !sosActive} />
         <TouchableOpacity
           style={[
             styles.sosButton,
@@ -697,6 +768,7 @@ export default function DashboardScreen({ navigation }) {
             </>
           )}
         </TouchableOpacity>
+        </View>
 
         {sosFeedback ? (
           <Text style={[styles.sosFeedback, sosActive && styles.sosFeedbackActive]} accessibilityLiveRegion="polite">
@@ -711,7 +783,12 @@ export default function DashboardScreen({ navigation }) {
 
       <View style={styles.voiceCard}>
         <View style={styles.voiceHeader}>
-          <Text style={styles.voiceTitle}>🎙️ Voice SOS</Text>
+          <View style={styles.voiceTitleRow}>
+            <View style={styles.iconBubble}>
+              <Image source={IMAGES.iconHeart} style={styles.iconBubbleImage} resizeMode="contain" />
+            </View>
+            <Text style={styles.voiceTitle}>Voice SOS</Text>
+          </View>
 
           <Text
             style={[
@@ -803,7 +880,11 @@ export default function DashboardScreen({ navigation }) {
                   },
                 ]}
               >
-                <Text style={styles.actionIcon}>{action.icon}</Text>
+                {ACTION_ICONS[action.id] ? (
+                  <Image source={ACTION_ICONS[action.id]} style={styles.actionIconImage} resizeMode="contain" />
+                ) : (
+                  <Text style={styles.actionIcon}>{action.icon}</Text>
+                )}
               </View>
 
               <Text style={styles.actionTitle}>{action.title}</Text>
@@ -815,14 +896,20 @@ export default function DashboardScreen({ navigation }) {
       {/* Safety Tips Card */}
 
       <View style={styles.tipsCard}>
-        <Text style={styles.tipsTitle}>💡 Safety Tip</Text>
+        <Image source={IMAGES.cardBackground} style={styles.tipsTexture} resizeMode="cover" />
+        <View style={styles.tipsWash} />
+        <View style={styles.tipsBody}>
+          <Text style={styles.tipsTitle}>Safety tip</Text>
 
-        <Text style={styles.tipsText}>
-          Always keep your emergency contacts updated and share your location
-          with trusted friends when traveling alone.
-        </Text>
+          <Text style={styles.tipsText}>
+            Always keep your emergency contacts updated and share your location
+            with trusted friends when traveling alone.
+          </Text>
+        </View>
+        <Image source={IMAGES.safety} style={styles.tipsImage} resizeMode="contain" />
       </View>
     </ScrollView>
+    </View>
   );
 }
 
@@ -833,42 +920,203 @@ export default function DashboardScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "transparent",
+  },
 
+  screen: {
+    flex: 1,
     backgroundColor: COLORS.background,
   },
 
-  header: {
-    padding: SPACING.lg,
+  wallpaper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
+    opacity: 0.5,
+  },
 
-    paddingTop: SPACING.xl,
+  wallpaperWash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,248,252,0.6)",
+  },
 
-    backgroundColor: COLORS.cardBg,
+  scrollContent: {
+    paddingBottom: 48,
+  },
 
-    borderBottomLeftRadius: RADIUS.xl,
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: SPACING.md,
+  },
 
-    borderBottomRightRadius: RADIUS.xl,
+  headerLogo: {
+    width: 120,
+    height: 48,
+  },
 
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.success,
+    marginRight: 6,
+  },
+
+  statusPillText: {
+    fontSize: 12,
+    fontFamily: FONTS.bodySemi,
+    color: COLORS.primary,
+  },
+
+  hero: {
+    marginHorizontal: SPACING.lg,
+    height: 150,
+    borderRadius: 22,
+    overflow: "hidden",
+    justifyContent: "flex-end",
     ...SHADOW,
+  },
+
+  heroImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
+  },
+
+  heroShade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(40,12,60,0.16)",
+  },
+
+  heroText: {
+    padding: SPACING.md,
+    fontSize: 20,
+    fontFamily: FONTS.headingBold,
+    color: "#FFFFFF",
+  },
+
+  sosWrap: {
+    width: 270,
+    height: 270,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  pulseRing: {
+    position: "absolute",
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    backgroundColor: COLORS.sos,
+  },
+
+  voiceTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  iconBubble: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: "hidden",
+    backgroundColor: COLORS.softPink,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: SPACING.sm,
+  },
+
+  iconBubbleImage: {
+    width: 30,
+    height: 30,
+  },
+
+  actionIconImage: {
+    width: 40,
+    height: 40,
+  },
+
+  tipsTexture: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
+  },
+
+  tipsWash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,255,255,0.8)",
+  },
+
+  tipsBody: {
+    flex: 1,
+    paddingRight: SPACING.sm,
+  },
+
+  tipsImage: {
+    width: 96,
+    height: 96,
+  },
+
+  header: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.md,
   },
 
   greeting: {
     fontSize: 18,
+    fontFamily: FONTS.body,
 
     color: COLORS.textSecondary,
   },
 
   userName: {
-    fontSize: 32,
-
-    fontWeight: "bold",
-
+    fontSize: 28,
+    fontFamily: FONTS.headingBold,
     color: COLORS.primary,
-
     marginBottom: SPACING.xs,
   },
 
   subtitle: {
     fontSize: 14,
+    fontFamily: FONTS.body,
 
     color: COLORS.textSecondary,
 
@@ -893,21 +1141,19 @@ const styles = StyleSheet.create({
 
   voiceButtonText: {
     fontSize: 16,
-    fontWeight: "700",
+    fontFamily: FONTS.bodyBold,
     color: COLORS.primary,
   },
   sosContainer: {
     alignItems: "center",
-
-    paddingVertical: SPACING.xxl,
-
+    paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.lg,
   },
 
   sosLabel: {
     fontSize: 20,
 
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
 
     color: COLORS.textPrimary,
 
@@ -915,33 +1161,18 @@ const styles = StyleSheet.create({
   },
 
   sosButton: {
-    width: 280,
-
-    height: 280,
-
-    borderRadius: 140,
-
+    width: 230,
+    height: 230,
+    borderRadius: 115,
     backgroundColor: COLORS.sos,
-
     justifyContent: "center",
-
     alignItems: "center",
-
     shadowColor: COLORS.sos,
-
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
-
     shadowRadius: 20,
-
     elevation: 15,
-
     borderWidth: 8,
-
     borderColor: "#fff",
   },
 
@@ -963,19 +1194,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     color: COLORS.textSecondary,
     fontSize: 13,
+    fontFamily: FONTS.body,
     textAlign: "center",
     lineHeight: 18,
   },
 
   sosFeedbackActive: {
     color: "#374151",
-    fontWeight: "700",
+    fontFamily: FONTS.bodyBold,
   },
 
   sosText: {
-    fontSize: 80,
+    fontSize: 68,
 
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
 
     color: "#fff",
 
@@ -989,13 +1221,14 @@ const styles = StyleSheet.create({
 
     marginTop: SPACING.sm,
 
-    fontWeight: "600",
+    fontFamily: FONTS.heading,
   },
 
   sosInstruction: {
     marginTop: SPACING.lg,
 
     fontSize: 14,
+    fontFamily: FONTS.body,
 
     color: COLORS.textSecondary,
 
@@ -1011,7 +1244,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
 
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
 
     color: COLORS.textPrimary,
 
@@ -1028,42 +1261,35 @@ const styles = StyleSheet.create({
 
   actionCard: {
     width: "48%",
-
-    backgroundColor: COLORS.cardBg,
-
-    borderRadius: RADIUS.lg,
-
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.xl,
     padding: SPACING.md,
-
     alignItems: "center",
-
     marginBottom: SPACING.md,
-
     ...SHADOW,
   },
 
   actionIconContainer: {
     width: 60,
-
     height: 60,
-
     borderRadius: RADIUS.full,
-
+    overflow: "hidden",
     justifyContent: "center",
-
     alignItems: "center",
-
     marginBottom: SPACING.sm,
   },
 
   actionIcon: {
     fontSize: 28,
+    fontFamily: FONTS.headingBold,
   },
 
   actionTitle: {
     fontSize: 14,
 
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
 
     color: COLORS.textPrimary,
 
@@ -1071,23 +1297,23 @@ const styles = StyleSheet.create({
   },
 
   tipsCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    overflow: "hidden",
     backgroundColor: COLORS.cardBg,
-
-    borderRadius: RADIUS.lg,
-
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.xl,
     padding: SPACING.lg,
-
     margin: SPACING.lg,
-
     marginTop: 0,
-
     ...SHADOW,
   },
 
   tipsTitle: {
     fontSize: 18,
 
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
 
     color: COLORS.textPrimary,
 
@@ -1096,6 +1322,7 @@ const styles = StyleSheet.create({
 
   tipsText: {
     fontSize: 14,
+    fontFamily: FONTS.body,
 
     color: COLORS.textSecondary,
 
@@ -1105,8 +1332,10 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.lg,
     marginBottom: SPACING.lg,
     padding: SPACING.lg,
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.lg,
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.xl,
     ...SHADOW,
   },
 
@@ -1119,13 +1348,13 @@ const styles = StyleSheet.create({
 
   voiceTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontFamily: FONTS.headingBold,
     color: COLORS.textPrimary,
   },
 
   voiceStatus: {
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
     color: COLORS.textSecondary,
   },
 
@@ -1135,17 +1364,20 @@ const styles = StyleSheet.create({
 
   voiceDescription: {
     fontSize: 14,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginBottom: SPACING.md,
   },
 
   voiceInput: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
+    minHeight: 48,
     fontSize: 16,
+    fontFamily: FONTS.body,
     color: COLORS.textPrimary,
     backgroundColor: "#fff",
   },
@@ -1153,14 +1385,15 @@ const styles = StyleSheet.create({
   voiceSaveButton: {
     marginTop: SPACING.sm,
     backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.sm,
+    minHeight: 46,
+    justifyContent: "center",
     borderRadius: RADIUS.md,
     alignItems: "center",
   },
 
   voiceSaveText: {
     color: "#fff",
-    fontWeight: "700",
+    fontFamily: FONTS.bodyBold,
     fontSize: 14,
   },
 
@@ -1180,13 +1413,14 @@ const styles = StyleSheet.create({
 
   backgroundSosButtonText: {
     color: COLORS.sos,
-    fontWeight: "700",
+    fontFamily: FONTS.bodyBold,
     fontSize: 14,
   },
 
   backgroundSosStatus: {
     marginTop: SPACING.sm,
     fontSize: 12,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     textAlign: "center",
   },
@@ -1194,6 +1428,7 @@ const styles = StyleSheet.create({
   voiceHint: {
     marginTop: SPACING.sm,
     fontSize: 12,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     textAlign: "center",
   },

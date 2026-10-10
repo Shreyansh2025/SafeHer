@@ -11,13 +11,16 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-} from 'react-native';
+  Image,
+} from "react-native";
 
 import {
   COLORS,
   SPACING,
   RADIUS,
   SHADOW,
+  FONTS,
+  IMAGES,
 } from '../utils/constants';
 
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
@@ -44,6 +47,7 @@ export default function SignupScreen({ navigation }) {
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState(null);
 
   const { login } = useAuth();
 
@@ -190,12 +194,14 @@ const handleGoogleSignup = async () => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <Image source={IMAGES.background} style={styles.bgImage} resizeMode="cover" />
+      <View style={styles.bgWash} pointerEvents="none" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.appName}>SafeHer</Text>
+          <Image source={IMAGES.logo} style={styles.logo} resizeMode="contain" />
           <Text style={styles.tagline}>Join us today</Text>
         </View>
 
@@ -212,8 +218,11 @@ const handleGoogleSignup = async () => {
             <TextInput
               style={[
                 styles.input,
+                focusedField === "name" && styles.inputFocused,
                 errors.name && styles.inputError,
               ]}
+              onFocus={() => setFocusedField("name")}
+              onBlur={() => setFocusedField(null)}
               placeholder="Your full name"
               placeholderTextColor={COLORS.textSecondary}
               value={name}
@@ -237,8 +246,11 @@ const handleGoogleSignup = async () => {
             <TextInput
               style={[
                 styles.input,
+                focusedField === "email" && styles.inputFocused,
                 errors.email && styles.inputError,
               ]}
+              onFocus={() => setFocusedField("email")}
+              onBlur={() => setFocusedField(null)}
               placeholder="your.email@example.com"
               placeholderTextColor={COLORS.textSecondary}
               value={email}
@@ -263,8 +275,11 @@ const handleGoogleSignup = async () => {
             <TextInput
               style={[
                 styles.input,
+                focusedField === "phone" && styles.inputFocused,
                 errors.phone && styles.inputError,
               ]}
+              onFocus={() => setFocusedField("phone")}
+              onBlur={() => setFocusedField(null)}
               placeholder="+91 9876543210"
               placeholderTextColor={COLORS.textSecondary}
               value={phone}
@@ -287,8 +302,11 @@ const handleGoogleSignup = async () => {
             <TextInput
               style={[
                 styles.input,
+                focusedField === "password" && styles.inputFocused,
                 errors.password && styles.inputError,
               ]}
+              onFocus={() => setFocusedField("password")}
+              onBlur={() => setFocusedField(null)}
               placeholder="Create a strong password"
               placeholderTextColor={COLORS.textSecondary}
               value={password}
@@ -320,8 +338,11 @@ const handleGoogleSignup = async () => {
             <TextInput
               style={[
                 styles.input,
+                focusedField === "confirmPassword" && styles.inputFocused,
                 errors.confirmPassword && styles.inputError,
               ]}
+              onFocus={() => setFocusedField("confirmPassword")}
+              onBlur={() => setFocusedField(null)}
               placeholder="Re-enter your password"
               placeholderTextColor={COLORS.textSecondary}
               value={confirmPassword}
@@ -421,35 +442,63 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
 
-  appName: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: COLORS.primary,
+    logo: {
+    width: 220,
+    height: 100,
     marginBottom: SPACING.xs,
+  },
+
+  bgImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
+    opacity: 0.5,
+  },
+
+  bgWash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,248,252,0.6)",
+  },
+
+  inputFocused: {
+    borderColor: COLORS.primary,
+    backgroundColor: "#FFFFFF",
   },
 
   tagline: {
     fontSize: 16,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     fontStyle: 'italic',
   },
 
-  card: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.lg,
+    card: {
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     padding: SPACING.lg,
     ...SHADOW,
   },
 
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontFamily: FONTS.headingBold,
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
 
   subtitle: {
     fontSize: 16,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginBottom: SPACING.lg,
   },
@@ -460,18 +509,21 @@ const styles = StyleSheet.create({
 
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.bodySemi,
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
 
-  input: {
+    input: {
     backgroundColor: COLORS.background,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
     borderRadius: RADIUS.md,
-    padding: SPACING.md,
+    minHeight: 52,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
     fontSize: 16,
+    fontFamily: FONTS.body,
     color: COLORS.textPrimary,
   },
 
@@ -482,21 +534,24 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#DC2626',
     fontSize: 12,
+    fontFamily: FONTS.body,
     marginTop: 5,
   },
 
   helperText: {
     color: COLORS.textSecondary,
     fontSize: 12,
+    fontFamily: FONTS.body,
     marginTop: 5,
     lineHeight: 17,
   },
 
-  signupButton: {
+    signupButton: {
     backgroundColor: COLORS.primary,
     borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    alignItems: 'center',
+    minHeight: 52,
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: SPACING.sm,
   },
 
@@ -507,7 +562,7 @@ const styles = StyleSheet.create({
   signupButtonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: FONTS.headingBold,
   },
 
   divider: {
@@ -526,21 +581,23 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.md,
     color: COLORS.textSecondary,
     fontSize: 14,
+    fontFamily: FONTS.body,
   },
 
-  googleButton: {
+    googleButton: {
     backgroundColor: COLORS.cardBg,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
     borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    alignItems: 'center',
+    minHeight: 52,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   googleButtonText: {
     color: COLORS.textPrimary,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.bodySemi,
   },
 
   footer: {
@@ -552,11 +609,12 @@ const styles = StyleSheet.create({
   footerText: {
     color: COLORS.textSecondary,
     fontSize: 14,
+    fontFamily: FONTS.body,
   },
 
   linkText: {
     color: COLORS.secondary,
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: FONTS.bodyBold,
   },
 });

@@ -17,6 +17,7 @@ import {
   SPACING,
   RADIUS,
   SHADOW,
+  FONTS,
 } from "../utils/constants";
 
 import { adminAPI } from "../services/api";
@@ -271,19 +272,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F3FF",
     color: COLORS.primary,
     fontSize: 12,
-    fontWeight: "800",
+    fontFamily: FONTS.bodyBold,
     letterSpacing: 1,
     marginBottom: SPACING.sm,
   },
 
   appName: {
     fontSize: 44,
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
     color: COLORS.primary,
   },
 
   tagline: {
     fontSize: 16,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginTop: SPACING.xs,
   },
@@ -297,13 +299,14 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
 
   subtitle: {
     fontSize: 15,
+    fontFamily: FONTS.body,
     lineHeight: 22,
     color: COLORS.textSecondary,
     marginBottom: SPACING.lg,
@@ -315,7 +318,7 @@ const styles = StyleSheet.create({
 
   label: {
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
@@ -327,6 +330,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     fontSize: 16,
+    fontFamily: FONTS.body,
     color: COLORS.textPrimary,
   },
 
@@ -337,6 +341,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#DC2626",
     fontSize: 12,
+    fontFamily: FONTS.body,
     marginTop: 5,
     marginBottom: SPACING.xs,
   },
@@ -356,7 +361,7 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: "#fff",
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
   },
 
   backButton: {
@@ -368,6 +373,6 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: COLORS.secondary,
     fontSize: 15,
-    fontWeight: "700",
+    fontFamily: FONTS.bodyBold,
   },
 });

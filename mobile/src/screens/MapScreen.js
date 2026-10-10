@@ -12,7 +12,7 @@ import * as Location from "expo-location";
 
 import { WebView } from "react-native-webview";
 
-import { COLORS } from "../utils/constants";
+import { COLORS, FONTS } from "../utils/constants";
 
 import { socket } from "../services/socket";
 
@@ -929,7 +929,7 @@ const styles = StyleSheet.create({
 
     fontSize: 15,
 
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
 
     color: COLORS.textPrimary,
   },
@@ -983,7 +983,7 @@ const styles = StyleSheet.create({
   liveText: {
     fontSize: 11,
 
-    fontWeight: "800",
+    fontFamily: FONTS.bodyBold,
 
     color: "#166534",
 
@@ -1036,6 +1036,7 @@ const styles = StyleSheet.create({
 
   mapButtonIcon: {
     fontSize: 24,
+    fontFamily: FONTS.headingBold,
   },
 
   followButton: {
@@ -1077,7 +1078,7 @@ const styles = StyleSheet.create({
   followButtonText: {
     fontSize: 12,
 
-    fontWeight: "700",
+    fontFamily: FONTS.bodyBold,
 
     color: COLORS.primary,
   },
@@ -1125,7 +1126,7 @@ const styles = StyleSheet.create({
   locationTitle: {
     fontSize: 15,
 
-    fontWeight: "800",
+    fontFamily: FONTS.bodyBold,
 
     color: COLORS.textPrimary,
   },
@@ -1134,6 +1135,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
 
     fontSize: 11,
+    fontFamily: FONTS.body,
 
     color: COLORS.textSecondary,
   },
@@ -1167,7 +1169,7 @@ const styles = StyleSheet.create({
   liveSmallText: {
     fontSize: 9,
 
-    fontWeight: "800",
+    fontFamily: FONTS.bodyBold,
 
     color: "#166534",
   },
@@ -1175,7 +1177,7 @@ const styles = StyleSheet.create({
   coordinates: {
     fontSize: 14,
 
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
 
     color: COLORS.textSecondary,
 
@@ -1196,6 +1198,7 @@ const styles = StyleSheet.create({
   mapErrorText: {
     color: "#374151",
     fontSize: 14,
+    fontFamily: FONTS.body,
     textAlign: "center",
     lineHeight: 20,
     marginBottom: 12,
@@ -1208,6 +1211,6 @@ const styles = StyleSheet.create({
   },
   mapRetryText: {
     color: "#FFFFFF",
-    fontWeight: "700",
+    fontFamily: FONTS.bodyBold,
   },
 });

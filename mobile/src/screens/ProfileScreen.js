@@ -12,7 +12,14 @@ import {
   Image,
 } from "react-native";
 
-import { COLORS, SPACING, RADIUS, SHADOW } from "../utils/constants";
+import { COLORS, SPACING, RADIUS, SHADOW, FONTS, IMAGES } from "../utils/constants";
+
+// Visual-only: image icons for menu rows (others keep their emoji)
+const MENU_ICONS = {
+  3: IMAGES.iconShield,
+  4: IMAGES.iconLocation,
+  5: IMAGES.iconChat,
+};
 import { useAuth } from "../context/AuthContext";
 import { profileAPI } from "../services/api";
 
@@ -256,6 +263,9 @@ export default function ProfileScreen() {
 
   return (
     <>
+      <View style={styles.screen}>
+      <Image source={IMAGES.background} style={styles.bgImage} resizeMode="cover" />
+      <View style={styles.bgWash} pointerEvents="none" />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
@@ -279,7 +289,9 @@ export default function ProfileScreen() {
 
           {user?.phone ? (
             <Text style={styles.userPhone}>{user.phone}</Text>
-          ) : null}
+          ) : (
+            <Text style={styles.userPhoneMissing}>Phone: Not added</Text>
+          )}
 
           {loadingProfile && (
             <View style={styles.profileLoading}>
@@ -323,7 +335,11 @@ export default function ProfileScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.menuIconContainer}>
-                <Text style={styles.menuIcon}>{item.icon}</Text>
+                {MENU_ICONS[item.id] ? (
+                  <Image source={MENU_ICONS[item.id]} style={styles.menuIconImage} resizeMode="contain" />
+                ) : (
+                  <Text style={styles.menuIcon}>{item.icon}</Text>
+                )}
               </View>
 
               <View style={styles.menuTextContainer}>
@@ -335,6 +351,17 @@ export default function ProfileScreen() {
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
           ))}
+        </View>
+
+        <View style={styles.privacyCard}>
+          <View style={styles.privacyBody}>
+            <Text style={styles.privacyTitle}>Privacy & security</Text>
+            <Text style={styles.privacyText}>
+              Your details stay private. Your live location is shared with your
+              emergency contacts only when you send an SOS.
+            </Text>
+          </View>
+          <Image source={IMAGES.protection} style={styles.privacyImage} resizeMode="contain" />
         </View>
 
         {/* -------------------------------------------
@@ -355,7 +382,7 @@ export default function ProfileScreen() {
           <Text style={styles.footerText}>Made with ❤️ for women's safety</Text>
         </View>
       </ScrollView>
-
+      </View>
       {/* =================================================
           EDIT PROFILE MODAL
       ================================================= */}
@@ -523,6 +550,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.qrWrapper}>
+              <Image source={IMAGES.logo} style={styles.qrLogo} resizeMode="contain" />
               {user?.qrCode ? (
                 <View style={styles.qrBox}>
                   <Image
@@ -547,7 +575,88 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'transparent',
+  },
+
+  screen: {
+    flex: 1,
     backgroundColor: COLORS.background,
+  },
+
+  bgImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+    opacity: 0.5,
+  },
+
+  bgWash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,248,252,0.6)',
+  },
+
+  userPhoneMissing: {
+    fontSize: 14,
+    fontFamily: FONTS.body,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+
+  menuIconImage: {
+    width: 28,
+    height: 28,
+  },
+
+  qrLogo: {
+    width: 150,
+    height: 60,
+    marginBottom: SPACING.sm,
+  },
+
+  privacyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+    padding: SPACING.lg,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.xl,
+    overflow: 'hidden',
+    ...SHADOW,
+  },
+
+  privacyBody: {
+    flex: 1,
+    paddingRight: SPACING.sm,
+  },
+
+  privacyTitle: {
+    fontSize: 16,
+    fontFamily: FONTS.heading,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
+  },
+
+  privacyText: {
+    fontSize: 13,
+    fontFamily: FONTS.body,
+    color: COLORS.textSecondary,
+    lineHeight: 19,
+  },
+
+  privacyImage: {
+    width: 84,
+    height: 84,
   },
 
   contentContainer: {
@@ -586,25 +695,27 @@ const styles = StyleSheet.create({
 
   avatarText: {
     fontSize: 36,
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
     color: "#fff",
   },
 
   userName: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs / 2,
   },
 
   userEmail: {
     fontSize: 14,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
   },
 
   userPhone: {
     fontSize: 14,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginBottom: SPACING.lg,
   },
@@ -618,6 +729,7 @@ const styles = StyleSheet.create({
   profileLoadingText: {
     marginLeft: SPACING.xs,
     fontSize: 12,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
   },
 
@@ -640,7 +752,7 @@ const styles = StyleSheet.create({
   qrCaption: {
     marginTop: SPACING.md,
     fontSize: 15,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
     color: COLORS.textSecondary,
     textAlign: "center",
   },
@@ -660,12 +772,13 @@ const styles = StyleSheet.create({
 
   statValue: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
     color: COLORS.primary,
   },
 
   statLabel: {
     fontSize: 12,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginTop: SPACING.xs / 2,
   },
@@ -687,8 +800,10 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.lg,
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.xl,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
     ...SHADOW,
@@ -698,7 +813,8 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.background,
+    overflow: "hidden",
+    backgroundColor: COLORS.softPink,
     justifyContent: "center",
     alignItems: "center",
     marginRight: SPACING.md,
@@ -706,6 +822,7 @@ const styles = StyleSheet.create({
 
   menuIcon: {
     fontSize: 24,
+    fontFamily: FONTS.headingBold,
   },
 
   menuTextContainer: {
@@ -714,18 +831,20 @@ const styles = StyleSheet.create({
 
   menuTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs / 2,
   },
 
   menuSubtitle: {
     fontSize: 13,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
   },
 
   chevron: {
     fontSize: 28,
+    fontFamily: FONTS.headingBold,
     color: COLORS.textSecondary,
   },
 
@@ -734,19 +853,21 @@ const styles = StyleSheet.create({
   -------------------------------------------- */
 
   logoutButton: {
-    backgroundColor: COLORS.danger,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: COLORS.danger,
     margin: SPACING.lg,
     marginTop: SPACING.md,
-    padding: SPACING.md,
-    borderRadius: RADIUS.lg,
+    minHeight: 52,
+    justifyContent: "center",
+    borderRadius: RADIUS.md,
     alignItems: "center",
-    ...SHADOW,
   },
 
   logoutText: {
-    color: "#fff",
+    color: COLORS.danger,
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: FONTS.bodyBold,
   },
 
   /* -------------------------------------------
@@ -760,6 +881,7 @@ const styles = StyleSheet.create({
 
   footerText: {
     fontSize: 14,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     fontStyle: "italic",
   },
@@ -791,12 +913,13 @@ const styles = StyleSheet.create({
 
   modalTitle: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
     color: COLORS.textPrimary,
   },
 
   modalSubtitle: {
     fontSize: 13,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginTop: SPACING.xs,
   },
@@ -812,6 +935,7 @@ const styles = StyleSheet.create({
 
   closeButtonText: {
     fontSize: 28,
+    fontFamily: FONTS.headingBold,
     lineHeight: 30,
     color: COLORS.textSecondary,
   },
@@ -822,7 +946,7 @@ const styles = StyleSheet.create({
 
   inputLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
@@ -835,11 +959,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
     fontSize: 16,
+    fontFamily: FONTS.body,
     color: COLORS.textPrimary,
   },
 
   inputHint: {
     fontSize: 12,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginTop: SPACING.xs,
     lineHeight: 18,
@@ -877,13 +1003,13 @@ const styles = StyleSheet.create({
 
   cancelButtonText: {
     color: COLORS.textPrimary,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
     fontSize: 15,
   },
 
   saveButtonText: {
     color: "#fff",
-    fontWeight: "bold",
+    fontFamily: FONTS.bodyBold,
     fontSize: 15,
   },
 });

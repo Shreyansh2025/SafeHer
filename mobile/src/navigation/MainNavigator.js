@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { COLORS } from '../utils/constants';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS, FONTS } from '../utils/constants';
 import DashboardScreen from '../screens/DashboardScreen';
 import MapScreen from '../screens/MapScreen';
 import ContactsScreen from '../screens/ContactsScreen';
@@ -10,33 +11,41 @@ import ProfileScreen from '../screens/ProfileScreen';
 const Tab = createBottomTabNavigator();
 
 export default function MainNavigator() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textSecondary,
+        tabBarInactiveTintColor: COLORS.mutedIcon,
         tabBarStyle: {
           backgroundColor: COLORS.cardBg,
-          borderTopWidth: 1,
-          borderTopColor: COLORS.border,
-          paddingBottom: 8,
+          borderTopWidth: 0,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
           paddingTop: 8,
-          height: 60,
+          paddingBottom: Math.max(insets.bottom, 8),
+          height: 62 + Math.max(insets.bottom - 8, 0),
+          shadowColor: '#311446',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.12,
+          shadowRadius: 10,
+          elevation: 12,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+          fontSize: 11,
+          fontFamily: FONTS.bodySemi,
         },
         headerStyle: {
-          backgroundColor: COLORS.cardBg,
+          backgroundColor: COLORS.background,
           elevation: 0,
           shadowOpacity: 0,
           borderBottomWidth: 0,
         },
         headerTitleStyle: {
           fontSize: 20,
-          fontWeight: 'bold',
-          color: COLORS.textPrimary,
+          fontFamily: FONTS.heading,
+          color: COLORS.primary,
         },
       }}
     >
@@ -101,7 +110,7 @@ export default function MainNavigator() {
 
 // Simple emoji-based icon component
 function TabIcon({ emoji, size }) {
-  return <Text style={{ fontSize: size }}>{emoji}</Text>;
+  return <Text style={{ fontSize: size , fontFamily: FONTS.body}}>{emoji}</Text>;
 }
 
 // Import Text from react-native

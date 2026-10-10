@@ -7,11 +7,12 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  ActivityIndicator,
+    ActivityIndicator,
   TouchableOpacity,
   Alert,
+  Image,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOW } from '../utils/constants';
+import { COLORS, SPACING, RADIUS, SHADOW, FONTS, IMAGES } from '../utils/constants';
 import { emergencyAPI } from '../services/api';
 
 export default function HistoryScreen() {
@@ -86,7 +87,16 @@ export default function HistoryScreen() {
   };
 
   const renderHistoryItem = ({ item }) => (
-    <View style={styles.historyCard}>
+    <View
+      style={[
+        styles.historyCard,
+        item.status === 'RESOLVED'
+          ? styles.cardResolved
+          : item.status === 'CANCELLED'
+            ? styles.cardCancelled
+            : styles.cardActive,
+      ]}
+    >
       <View style={styles.cardHeader}>
         <View style={styles.dateContainer}>
           <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
@@ -96,27 +106,34 @@ export default function HistoryScreen() {
         <View
           style={[
             styles.statusBadge,
-            item.status === 'RESOLVED' ? styles.resolvedBadge : styles.activeBadge,
+            item.status === 'RESOLVED' ? styles.resolvedBadge : item.status === 'CANCELLED' ? styles.cancelledBadge : styles.activeBadge,
           ]}
         >
           <Text
             style={[
               styles.statusText,
-              item.status === 'RESOLVED' ? styles.resolvedText : styles.activeText,
+              item.status === 'RESOLVED' ? styles.resolvedText : item.status === 'CANCELLED' ? styles.cancelledText : styles.activeText,
             ]}
           >
-            {item.status === 'RESOLVED' ? '✓ Resolved' : '⚠ Active'}
+            {item.status === 'RESOLVED' ? '✓ Resolved' : item.status === 'CANCELLED' ? 'Cancelled' : '⚠ Active'}
           </Text>
         </View>
       </View>
 
       <View style={styles.locationContainer}>
-        <Text style={styles.locationIcon}>📍</Text>
+        <Image source={IMAGES.iconLocation} style={styles.locationImage} resizeMode="contain" />
         <Text style={styles.locationText}>
           {item.address || `Location: ${parseFloat(item.latitude).toFixed(4)}, ${parseFloat(item.longitude).toFixed(4)}`}
         </Text>
       </View>
 
+      {(item.triggerType || item.trigger_type) ? (
+        <View style={styles.triggerChip}>
+          <Text style={styles.triggerChipText}>
+            Triggered by {String(item.triggerType || item.trigger_type).toLowerCase()}
+          </Text>
+        </View>
+      ) : null}
       <View style={styles.coordinatesContainer}>
         <Text style={styles.coordinatesText}>
           Lat: {parseFloat(item.latitude).toFixed(6)}, Long: {parseFloat(item.longitude).toFixed(6)}
@@ -138,10 +155,15 @@ export default function HistoryScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Emergency History</Text>
-        <Text style={styles.subtitle}>
-          {history.length} alert{history.length !== 1 ? 's' : ''}
-        </Text>
+        <View style={styles.headerIcon}>
+          <Image source={IMAGES.iconLocation} style={styles.headerIconImage} resizeMode="contain" />
+        </View>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Emergency History</Text>
+          <Text style={styles.subtitle}>
+            {history.length} alert{history.length !== 1 ? 's' : ''}
+          </Text>
+        </View>
       </View>
 
       {/* History List */}
@@ -151,8 +173,8 @@ export default function HistoryScreen() {
         </View>
       ) : history.length === 0 ? (
         <View style={styles.centerContent}>
-          <Text style={styles.emptyIcon}>📋</Text>
-          <Text style={styles.emptyText}>No emergency history</Text>
+          <Image source={IMAGES.support} style={styles.emptyImage} resizeMode="contain" />
+          <Text style={styles.emptyText}>No emergencies yet. Stay safe!</Text>
           <Text style={styles.emptySubtext}>
             Your past SOS alerts will appear here
           </Text>
@@ -177,6 +199,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: SPACING.lg,
     paddingTop: SPACING.xl,
     backgroundColor: COLORS.cardBg,
@@ -184,13 +208,55 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: RADIUS.xl,
     ...SHADOW,
   },
+
+  headerIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    overflow: 'hidden',
+    backgroundColor: COLORS.softPink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+
+  headerIconImage: { width: 42, height: 42 },
+
+  headerText: { flex: 1 },
+
+  emptyImage: { width: 160, height: 160, marginBottom: SPACING.md },
+
+  locationImage: { width: 22, height: 22, marginRight: SPACING.xs },
+
+  cardActive: { borderLeftColor: COLORS.sos },
+  cardResolved: { borderLeftColor: COLORS.success },
+  cardCancelled: { borderLeftColor: '#9CA3AF' },
+
+  cancelledBadge: { backgroundColor: '#E5E7EB' },
+  cancelledText: { color: '#6B7280' },
+
+  triggerChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.softPink,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    marginBottom: SPACING.sm,
+  },
+
+  triggerChipText: {
+    fontSize: 11,
+    fontFamily: FONTS.bodySemi,
+    color: COLORS.primary,
+  },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontFamily: FONTS.headingBold,
     color: COLORS.textPrimary,
   },
   subtitle: {
     fontSize: 14,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginTop: SPACING.xs,
   },
@@ -202,16 +268,18 @@ const styles = StyleSheet.create({
   },
   emptyIcon: {
     fontSize: 64,
+    fontFamily: FONTS.headingBold,
     marginBottom: SPACING.md,
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: FONTS.heading,
     color: COLORS.textPrimary,
     marginBottom: SPACING.sm,
   },
   emptySubtext: {
     fontSize: 14,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     textAlign: 'center',
   },
@@ -220,7 +288,10 @@ const styles = StyleSheet.create({
   },
   historyCard: {
     backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderLeftWidth: 5,
+    borderRadius: RADIUS.xl,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     ...SHADOW,
@@ -236,34 +307,35 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: FONTS.bodyBold,
     color: COLORS.textPrimary,
   },
   timeText: {
     fontSize: 14,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginTop: SPACING.xs / 2,
   },
   statusBadge: {
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.sm + 2,
     paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.sm,
+    borderRadius: RADIUS.full,
   },
   resolvedBadge: {
     backgroundColor: COLORS.success + '20',
   },
   activeBadge: {
-    backgroundColor: COLORS.warning + '20',
+    backgroundColor: COLORS.sos + '1A',
   },
   statusText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: FONTS.bodySemi,
   },
   resolvedText: {
     color: COLORS.success,
   },
   activeText: {
-    color: COLORS.warning,
+    color: COLORS.sos,
   },
   locationContainer: {
     flexDirection: 'row',
@@ -272,11 +344,13 @@ const styles = StyleSheet.create({
   },
   locationIcon: {
     fontSize: 20,
+    fontFamily: FONTS.body,
     marginRight: SPACING.xs,
   },
   locationText: {
     flex: 1,
     fontSize: 15,
+    fontFamily: FONTS.body,
     color: COLORS.textPrimary,
     lineHeight: 22,
   },
@@ -301,6 +375,6 @@ const styles = StyleSheet.create({
   resolveButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.bodySemi,
   },
 });

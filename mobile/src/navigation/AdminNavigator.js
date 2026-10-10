@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
-import { COLORS } from '../utils/constants';
+import { COLORS, FONTS } from '../utils/constants';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminHistoryScreen from '../screens/AdminHistoryScreen';
 import AdminUsersScreen from '../screens/AdminUsersScreen';
@@ -22,7 +22,7 @@ export default function AdminNavigator() {
           paddingTop: 8,
           height: 64,
         },
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '700' },
+        tabBarLabelStyle: { fontSize: 12, fontFamily: FONTS.bodyBold },
         headerStyle: {
           backgroundColor: COLORS.cardBg,
           elevation: 0,
@@ -31,7 +31,7 @@ export default function AdminNavigator() {
         },
         headerTitleStyle: {
           fontSize: 20,
-          fontWeight: '800',
+          fontFamily: FONTS.headingBold,
           color: COLORS.textPrimary,
         },
       }}
@@ -42,7 +42,7 @@ export default function AdminNavigator() {
         options={{
           title: 'Admin Dashboard',
           tabBarLabel: 'Dashboard',
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>🚨</Text>,
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size , fontFamily: FONTS.body}}>🚨</Text>,
         }}
       />
       <Tab.Screen
@@ -51,7 +51,7 @@ export default function AdminNavigator() {
         options={{
           title: 'Emergency History',
           tabBarLabel: 'History',
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>📋</Text>,
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size , fontFamily: FONTS.body}}>📋</Text>,
         }}
       />
       <Tab.Screen
@@ -60,7 +60,7 @@ export default function AdminNavigator() {
         options={{
           title: 'Users',
           tabBarLabel: 'Users',
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>👥</Text>,
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size , fontFamily: FONTS.body}}>👥</Text>,
         }}
       />
     </Tab.Navigator>

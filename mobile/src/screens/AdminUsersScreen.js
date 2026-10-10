@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { adminAPI } from '../services/api';
-import { SPACING } from '../utils/constants';
+import { SPACING, FONTS } from '../utils/constants';
 import { adminStyles as styles } from './adminStyles';
 import { formatDateTime } from '../utils/admin';
 
@@ -67,14 +67,14 @@ export default function AdminUsersScreen() {
             <Text style={styles.itemMeta}>Joined: {formatDateTime(item.createdAt)}</Text>
             <Text style={styles.itemMeta}>User ID: {item.id}</Text>
             <View style={styles.divider} />
-            <Text style={{ color: '#6B7280', fontSize: 12, fontWeight: '600' }}>
+            <Text style={{ color: '#6B7280', fontSize: 12, fontFamily: FONTS.bodySemi }}>
               Account access is controlled by the SafeHer authentication API.
             </Text>
           </View>
         ))
       )}
 
-      <Text style={{ color: '#9CA3AF', fontSize: 12, textAlign: 'center', marginTop: SPACING.sm }}>
+      <Text style={{ color: '#9CA3AF', fontSize: 12, fontFamily: FONTS.body, textAlign: 'center', marginTop: SPACING.sm }}>
         Pull down to refresh user data.
       </Text>
     </ScrollView>

@@ -12,6 +12,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from "react-native";
 
 import {
@@ -19,6 +20,8 @@ import {
   SPACING,
   RADIUS,
   SHADOW,
+  FONTS,
+  IMAGES,
 } from "../utils/constants";
 
 import { authAPI } from "../services/api";
@@ -37,6 +40,7 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState(null);
   const [errors, setErrors] = useState({});
 
   const { login } = useAuth();
@@ -177,12 +181,14 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
+      <Image source={IMAGES.background} style={styles.bgImage} resizeMode="cover" />
+      <View style={styles.bgWash} pointerEvents="none" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.appName}>SafeHer</Text>
+          <Image source={IMAGES.logo} style={styles.logo} resizeMode="contain" />
           <Text style={styles.tagline}>
             Your Safety, Our Priority
           </Text>
@@ -231,8 +237,11 @@ export default function LoginScreen({ navigation }) {
             <TextInput
               style={[
                 styles.input,
+                focusedField === "email" && styles.inputFocused,
                 errors.email && styles.inputError,
               ]}
+              onFocus={() => setFocusedField("email")}
+              onBlur={() => setFocusedField(null)}
               placeholder="your.email@example.com"
               placeholderTextColor={COLORS.textSecondary}
               value={email}
@@ -258,8 +267,11 @@ export default function LoginScreen({ navigation }) {
             <TextInput
               style={[
                 styles.input,
+                focusedField === "password" && styles.inputFocused,
                 errors.password && styles.inputError,
               ]}
+              onFocus={() => setFocusedField("password")}
+              onBlur={() => setFocusedField(null)}
               placeholder="Enter your password"
               placeholderTextColor={COLORS.textSecondary}
               value={password}
@@ -364,42 +376,70 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
 
-  appName: {
-    fontSize: 48,
-    fontWeight: "bold",
-    color: COLORS.primary,
+    logo: {
+    width: 220,
+    height: 100,
     marginBottom: SPACING.xs,
+  },
+
+  bgImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
+    opacity: 0.5,
+  },
+
+  bgWash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,248,252,0.6)",
+  },
+
+  inputFocused: {
+    borderColor: COLORS.primary,
+    backgroundColor: "#FFFFFF",
   },
 
   tagline: {
     fontSize: 16,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     fontStyle: "italic",
   },
 
-  card: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: RADIUS.lg,
+    card: {
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     padding: SPACING.lg,
     ...SHADOW,
   },
 
   title: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
 
   subtitle: {
     fontSize: 16,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginBottom: SPACING.lg,
   },
 
   modeLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
     color: COLORS.textPrimary,
     marginBottom: SPACING.sm,
   },
@@ -447,13 +487,13 @@ const styles = StyleSheet.create({
   modeText: {
     color: COLORS.textPrimary,
     fontSize: 15,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
   },
 
   modeTextActive: {
     color: COLORS.primary,
     fontSize: 15,
-    fontWeight: "700",
+    fontFamily: FONTS.bodyBold,
   },
 
   inputContainer: {
@@ -462,18 +502,21 @@ const styles = StyleSheet.create({
 
   label: {
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
 
-  input: {
+    input: {
     backgroundColor: COLORS.background,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
     borderRadius: RADIUS.md,
-    padding: SPACING.md,
+    minHeight: 52,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
     fontSize: 16,
+    fontFamily: FONTS.body,
     color: COLORS.textPrimary,
   },
 
@@ -484,14 +527,16 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#DC2626",
     fontSize: 12,
+    fontFamily: FONTS.body,
     marginTop: 5,
     marginBottom: SPACING.xs,
   },
 
-  loginButton: {
+    loginButton: {
     backgroundColor: COLORS.primary,
     borderRadius: RADIUS.md,
-    padding: SPACING.md,
+    minHeight: 52,
+    justifyContent: "center",
     alignItems: "center",
     marginTop: SPACING.sm,
   },
@@ -503,7 +548,7 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: "#fff",
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: FONTS.headingBold,
   },
 
   divider: {
@@ -522,21 +567,23 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.md,
     color: COLORS.textSecondary,
     fontSize: 14,
+    fontFamily: FONTS.body,
   },
 
-  googleButton: {
+    googleButton: {
     backgroundColor: COLORS.cardBg,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
     borderRadius: RADIUS.md,
-    padding: SPACING.md,
+    minHeight: 52,
+    justifyContent: "center",
     alignItems: "center",
   },
 
   googleButtonText: {
     color: COLORS.textPrimary,
     fontSize: 16,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
   },
 
   footer: {
@@ -548,11 +595,12 @@ const styles = StyleSheet.create({
   footerText: {
     color: COLORS.textSecondary,
     fontSize: 14,
+    fontFamily: FONTS.body,
   },
 
   linkText: {
     color: COLORS.secondary,
     fontSize: 14,
-    fontWeight: "bold",
+    fontFamily: FONTS.bodyBold,
   },
 });

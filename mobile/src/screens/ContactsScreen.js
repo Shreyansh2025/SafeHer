@@ -10,6 +10,7 @@ import {
   Modal,
   ActivityIndicator,
   FlatList,
+  Image,
 } from 'react-native';
 
 import {
@@ -17,6 +18,8 @@ import {
   SPACING,
   RADIUS,
   SHADOW,
+  FONTS,
+  IMAGES,
 } from '../utils/constants';
 
 import { contactAPI } from '../services/api';
@@ -423,9 +426,9 @@ export default function ContactsScreen() {
     const colors = [
       COLORS.primary,
       COLORS.secondary,
-      '#10B981',
-      '#F59E0B',
-      '#8B5CF6',
+      '#7A3E9D',
+      '#A24B8C',
+      '#6B3FA0',
     ];
 
     return colors[
@@ -554,19 +557,22 @@ export default function ContactsScreen() {
       {/* Header */}
 
       <View style={styles.header}>
-
-        <Text style={styles.title}>
-          Emergency Contacts
-        </Text>
+<View style={styles.headerIcon}>
+  <Image source={IMAGES.iconPhone} style={styles.headerIconImage} resizeMode="contain" />
+</View>
+<View style={styles.headerText}>
+<Text style={styles.title}>
+Emergency Contacts
+</Text>
 
         <Text style={styles.subtitle}>
           {contacts.length} contact
           {contacts.length !== 1
             ? 's'
-            : ''}
-        </Text>
-
-      </View>
+: ''}
+</Text>
+</View>
+</View>
 
 
       {/* Contact List */}
@@ -585,10 +591,10 @@ export default function ContactsScreen() {
       ) : contacts.length === 0 ? (
 
         <View style={styles.centerContent}>
-
-          <Text style={styles.emptyText}>
-            No emergency contacts yet
-          </Text>
+<Image source={IMAGES.support} style={styles.emptyImage} resizeMode="contain" />
+<Text style={styles.emptyText}>
+No contacts yet. Add someone you trust.
+</Text>
 
           <Text
             style={
@@ -839,25 +845,51 @@ const styles = StyleSheet.create({
   },
 
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: SPACING.lg,
     paddingTop: SPACING.xl,
-    backgroundColor:
-      COLORS.cardBg,
-    borderBottomLeftRadius:
-      RADIUS.xl,
-    borderBottomRightRadius:
-      RADIUS.xl,
+    backgroundColor: COLORS.cardBg,
+    borderBottomLeftRadius: RADIUS.xl,
+    borderBottomRightRadius: RADIUS.xl,
     ...SHADOW,
+  },
+
+  headerIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    overflow: 'hidden',
+    backgroundColor: COLORS.softPink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+
+  headerIconImage: {
+    width: 42,
+    height: 42,
+  },
+
+  headerText: {
+    flex: 1,
+  },
+
+  emptyImage: {
+    width: 160,
+    height: 160,
+    marginBottom: SPACING.md,
   },
 
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontFamily: FONTS.headingBold,
     color: COLORS.textPrimary,
   },
 
   subtitle: {
     fontSize: 14,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginTop: SPACING.xs,
   },
@@ -871,13 +903,14 @@ const styles = StyleSheet.create({
 
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: FONTS.heading,
     color: COLORS.textPrimary,
     marginBottom: SPACING.sm,
   },
 
   emptySubtext: {
     fontSize: 14,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     textAlign: 'center',
   },
@@ -891,9 +924,10 @@ const styles = StyleSheet.create({
   contactCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor:
-      COLORS.cardBg,
-    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.cardBg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.xl,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     ...SHADOW,
@@ -910,7 +944,7 @@ const styles = StyleSheet.create({
 
   avatarText: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: FONTS.headingBold,
     color: '#fff',
   },
 
@@ -920,7 +954,7 @@ const styles = StyleSheet.create({
 
   contactName: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: FONTS.headingBold,
     color: COLORS.textPrimary,
     marginBottom:
       SPACING.xs / 2,
@@ -928,24 +962,22 @@ const styles = StyleSheet.create({
 
   contactPhone: {
     fontSize: 14,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
   },
 
   relationshipBadge: {
-    backgroundColor:
-      COLORS.primary + '20',
-    paddingHorizontal:
-      SPACING.sm,
-    paddingVertical:
-      SPACING.xs / 2,
-    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.softPink,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs / 2,
+    borderRadius: RADIUS.full,
     alignSelf: 'flex-start',
   },
 
   relationshipText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: FONTS.bodySemi,
     color: COLORS.primary,
   },
 
@@ -955,14 +987,15 @@ const styles = StyleSheet.create({
 
   deleteButtonText: {
     fontSize: 20,
+    fontFamily: FONTS.body,
   },
 
   addButton: {
-    backgroundColor:
-      COLORS.primary,
+    backgroundColor: COLORS.primary,
     margin: SPACING.lg,
-    padding: SPACING.md,
-    borderRadius: RADIUS.lg,
+    minHeight: 52,
+    justifyContent: 'center',
+    borderRadius: RADIUS.md,
     alignItems: 'center',
     ...SHADOW,
   },
@@ -970,13 +1003,12 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: FONTS.headingBold,
   },
 
   modalOverlay: {
     flex: 1,
-    backgroundColor:
-      'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(49, 20, 70, 0.5)',
     justifyContent: 'flex-end',
   },
 
@@ -993,7 +1025,7 @@ const styles = StyleSheet.create({
 
   modalTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: FONTS.headingBold,
     color: COLORS.textPrimary,
     marginBottom: SPACING.lg,
   },
@@ -1004,21 +1036,21 @@ const styles = StyleSheet.create({
 
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.bodySemi,
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
 
   input: {
-    backgroundColor:
-      COLORS.background,
-    borderWidth: 1,
+    backgroundColor: COLORS.background,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
-    borderRadius:
-      RADIUS.md,
-    padding:
-      SPACING.md,
+    borderRadius: RADIUS.md,
+    minHeight: 52,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
     fontSize: 16,
+    fontFamily: FONTS.body,
     color: COLORS.textPrimary,
   },
 
@@ -1051,7 +1083,7 @@ const styles = StyleSheet.create({
     color:
       COLORS.textPrimary,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.bodySemi,
   },
 
   saveButton: {
@@ -1062,7 +1094,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: FONTS.bodyBold,
   },
 
   disabledButton: {
