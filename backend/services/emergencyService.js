@@ -6,8 +6,8 @@ const {
 } = require("../models/relation");
 
 const guardianService = require("./guardianService");
-const { sendWhatsApp } = require("./twilioService");
-const { sendSMS, makeVoiceCall } = require("./vonageService");
+const { sendWhatsApp ,makeVoiceCall} = require("./twilioService");
+const { sendSMS } = require("./vonageService");
 
 let io = null;
 

@@ -1,24 +1,25 @@
+
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+#include <WiFiClientSecure.h>
 
 const char* ssid = "wifi";
 const char* password = "host1313";
 
 const char* serverUrl =
-  "http://10.182.190.125:3000/api/iot/sos";
+  "https://safeher-ji7r.onrender.com/api/iot/sos";
 
-const char* deviceKey =
-  "SafeHer_IOT_2026";
+const char* deviceKey = "SafeHer_IOT_2026";
 
-#define SOS_PIN 13   // D7
+#define SOS_PIN 13  // D7
 
 bool ready = false;
 
 void setup() {
   Serial.begin(115200);
-
   pinMode(SOS_PIN, INPUT);
 
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
   Serial.print("Connecting");
@@ -28,16 +29,13 @@ void setup() {
     Serial.print(".");
   }
 
-  Serial.println();
-  Serial.println("WiFi Connected!");
+  Serial.println("\nWiFi Connected!");
   Serial.println(WiFi.localIP());
 }
 
 void loop() {
-
   int signal = digitalRead(SOS_PIN);
 
-  // Don't trigger until normal HIGH state is detected
   if (!ready) {
     if (signal == HIGH) {
       ready = true;
@@ -47,41 +45,43 @@ void loop() {
     return;
   }
 
-  // LOW = actual SOS
   if (signal == LOW) {
+    Serial.println("SOS RECEIVED!");
 
-    Serial.println("🚨 SOS RECEIVED!");
+    if (WiFi.status() == WL_CONNECTED) {
+      WiFiClientSecure client;
+      client.setInsecure();  // Testing only
+      HTTPClient https;
 
-    WiFiClient client;
-    HTTPClient http;
+      if (https.begin(client, serverUrl)) {
+        https.addHeader("Content-Type", "application/json");
+        https.addHeader("x-device-key", deviceKey);
 
-    http.begin(client, serverUrl);
+        String body =
+          "{\"userId\":1,"
+          "\"latitude\":22.7196,"
+          "\"longitude\":75.8577,"
+          "\"address\":\"IoT device location\"}";
 
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("x-device-key", deviceKey);
+        int responseCode = https.POST(body);
 
-    String body =
-      "{\"userId\":1,"
-      "\"latitude\":22.7196,"
-      "\"longitude\":75.8577,"
-      "\"address\":\"IoT device location\"}";
+        Serial.print("HTTP Response: ");
+        Serial.println(responseCode);
+        Serial.println(https.getString());
 
-    int responseCode = http.POST(body);
+        https.end();
+      } else {
+        Serial.println("HTTPS connection failed");
+      }
+    } else {
+      Serial.println("WiFi disconnected");
+    }
 
-    Serial.print("HTTP Response: ");
-    Serial.println(responseCode);
-
-    Serial.println(http.getString());
-
-    http.end();
-
-    // Wait for Arduino to return HIGH
     while (digitalRead(SOS_PIN) == LOW) {
       delay(50);
     }
 
     Serial.println("SOS END");
-
     delay(1000);
   }
 }

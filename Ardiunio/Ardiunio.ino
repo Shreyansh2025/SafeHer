@@ -8,40 +8,30 @@ void setup() {
   pinMode(BUZZER, OUTPUT);
   pinMode(SIGNAL, OUTPUT);
 
-  // Normal state
   digitalWrite(SIGNAL, HIGH);
 }
 
-void beep(int duration) {
-  tone(BUZZER, 1000);
-  delay(duration);
+void emergencySiren() {
+  // Alternating high-low emergency siren
+  for (int i = 0; i < 10; i++) {
+    tone(BUZZER, 1800);
+    delay(250);
+
+    tone(BUZZER, 1000);
+    delay(250);
+  }
+
   noTone(BUZZER);
-  delay(200);
-}
-
-void sosBeep() {
-  beep(200);
-  beep(200);
-  beep(200);
-  delay(300);
-
-  beep(600);
-  beep(600);
-  beep(600);
-  delay(300);
-
-  beep(200);
-  beep(200);
-  beep(200);
 }
 
 void loop() {
   if (digitalRead(BUTTON) == LOW) {
     digitalWrite(SIGNAL, LOW);
-    sosBeep();
+
+    emergencySiren();
+
     digitalWrite(SIGNAL, HIGH);
 
-    // Prevent repeated triggers while button is held
     while (digitalRead(BUTTON) == LOW) {
       delay(20);
     }
