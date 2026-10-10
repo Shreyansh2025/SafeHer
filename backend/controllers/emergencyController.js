@@ -1,5 +1,5 @@
 const emergencyService = require('../services/emergencyService');
-const { makeVoiceCall } = require("../services/vonageService");
+const { makeVoiceCall } = require("../services/twilioService");
 const trigger = async (req, res) => {
   try {
     const { latitude, longitude, address, triggerType } = req.body;
