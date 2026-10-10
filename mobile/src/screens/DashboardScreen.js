@@ -960,8 +960,8 @@ const styles = StyleSheet.create({
   },
 
   headerLogo: {
-    width: 120,
-    height: 48,
+    width: 65,
+    height: 65,
   },
 
   statusPill: {
