@@ -1,4 +1,5 @@
 const emergencyService = require("../services/emergencyService");
+const { Emergency } = require("../models/relation");
 
 const triggerIotSOS = async (req, res) => {
   try {
@@ -61,4 +62,48 @@ const triggerIotSOS = async (req, res) => {
   }
 };
 
-module.exports = { triggerIotSOS };
+
+
+const getIotSOSStatus = async (req, res) => {
+  try {
+    const deviceKey = req.headers["x-device-key"];
+
+    if (!deviceKey || deviceKey !== process.env.IOT_DEVICE_KEY) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid IoT device key",
+      });
+    }
+
+    const userId = req.query.userId;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "userId is required",
+      });
+    }
+
+    const emergency = await Emergency.findOne({
+      where: {
+        userId,
+        status: "ACTIVE",
+      },
+      order: [["startedAt", "DESC"]],
+    });
+
+    return res.status(200).json({
+      success: true,
+      active: !!emergency,
+      emergencyId: emergency ? emergency.id : null,
+    });
+  } catch (error) {
+    console.error("IoT status error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch SOS status",
+    });
+  }
+};
+
+module.exports = { triggerIotSOS, getIotSOSStatus };
